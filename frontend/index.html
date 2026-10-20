@@ -60,8 +60,10 @@
         <main class="main-content">
             <header class="topbar">
                 <div>
-                    <p class="breadcrumb">OrdenOne / Inicio</p>
-                    <h2>Panel principal</h2>
+                    <p class="breadcrumb">
+                        OrdenOne / <span id="breadcrumb-section">Inicio</span>
+                    </p>
+                    <h2 id="page-title">Panel principal</h2>
                 </div>
 
                 <div class="user-profile">
@@ -73,95 +75,213 @@
                 </div>
             </header>
 
-            <section class="welcome-section">
-                <div>
-                    <p class="eyebrow">BIENVENIDO A ORDENONE</p>
-                    <h2>Organiza tu negocio en un solo lugar</h2>
-                    <p>Administra tus clientes, servicios, citas y órdenes de servicio de forma sencilla.</p>
-                </div>
-                <div class="welcome-decoration">O</div>
-            </section>
-
-            <section class="dashboard-section">
-                <div class="section-heading">
+            <!-- Panel principal -->
+            <section id="dashboard-view">
+                <section class="welcome-section">
                     <div>
-                        <h3>Resumen general</h3>
-                        <p>Accede a los principales módulos de tu negocio.</p>
+                        <p class="eyebrow">BIENVENIDO A ORDENONE</p>
+                        <h2>Organiza tu negocio en un solo lugar</h2>
+                        <p>Administra tus clientes, servicios, citas y órdenes de servicio de forma sencilla.</p>
                     </div>
-                </div>
+                    <div class="welcome-decoration">O</div>
+                </section>
 
-                <div class="summary-grid">
-                    <article class="summary-card">
-                        <div class="card-icon clients-icon">♙</div>
-                        <p>Clientes</p>
-                        <h3>Gestionar clientes</h3>
-                        <span>Consulta y organiza tus clientes</span>
-                    </article>
+                <section class="dashboard-section">
+                    <div class="section-heading">
+                        <div>
+                            <h3>Resumen general</h3>
+                            <p>Accede a los principales módulos de tu negocio.</p>
+                        </div>
+                    </div>
 
-                    <article class="summary-card">
-                        <div class="card-icon appointments-icon">▦</div>
-                        <p>Citas</p>
-                        <h3>Gestionar citas</h3>
-                        <span>Organiza las citas programadas</span>
-                    </article>
+                    <div class="summary-grid">
+                        <article class="summary-card">
+                            <div class="card-icon clients-icon">♙</div>
+                            <p>Clientes</p>
+                            <h3>Gestionar clientes</h3>
+                            <span>Consulta y organiza tus clientes</span>
+                        </article>
 
-                    <article class="summary-card">
-                        <div class="card-icon services-icon">▤</div>
-                        <p>Servicios</p>
-                        <h3>Gestionar servicios</h3>
-                        <span>Consulta los servicios disponibles</span>
-                    </article>
+                        <article class="summary-card">
+                            <div class="card-icon appointments-icon">▦</div>
+                            <p>Citas</p>
+                            <h3>Gestionar citas</h3>
+                            <span>Organiza las citas programadas</span>
+                        </article>
 
-                    <article class="summary-card">
-                        <div class="card-icon payments-icon">$</div>
-                        <p>Pagos</p>
-                        <h3>Registrar pagos</h3>
-                        <span>Registra pagos recibidos y consulta saldos</span>
-                    </article>
-                </div>
+                        <article class="summary-card">
+                            <div class="card-icon services-icon">▤</div>
+                            <p>Servicios</p>
+                            <h3>Gestionar servicios</h3>
+                            <span>Consulta los servicios disponibles</span>
+                        </article>
+
+                        <article class="summary-card">
+                            <div class="card-icon payments-icon">$</div>
+                            <p>Pagos</p>
+                            <h3>Registrar pagos</h3>
+                            <span>Registra pagos recibidos y consulta saldos</span>
+                        </article>
+                    </div>
+                </section>
+
+                <section class="activity-section">
+                    <div class="section-heading">
+                        <div>
+                            <h3>Accesos a los módulos</h3>
+                            <p>Selecciona un módulo para continuar con la gestión.</p>
+                        </div>
+                    </div>
+
+                    <div class="module-list">
+                        <button class="module-item dashboard-link" data-section="clientes" type="button">
+                            <span class="module-symbol">♙</span>
+                            <span class="module-description">
+                                <strong>Clientes</strong>
+                                <span>Información y datos de contacto.</span>
+                            </span>
+                            <span class="module-arrow">›</span>
+                        </button>
+
+                        <button class="module-item dashboard-link" data-section="citas" type="button">
+                            <span class="module-symbol">▦</span>
+                            <span class="module-description">
+                                <strong>Citas</strong>
+                                <span>Programación y estado de las citas.</span>
+                            </span>
+                            <span class="module-arrow">›</span>
+                        </button>
+
+                        <button class="module-item dashboard-link" data-section="ordenes" type="button">
+                            <span class="module-symbol">☷</span>
+                            <span class="module-description">
+                                <strong>Órdenes de servicio</strong>
+                                <span>Servicios realizados y sus valores.</span>
+                            </span>
+                            <span class="module-arrow">›</span>
+                        </button>
+                    </div>
+                </section>
+
+                <footer class="page-footer">
+                    OrdenOne · Organiza fácil. Conserva clientes.
+                </footer>
             </section>
 
-            <section class="activity-section">
-                <div class="section-heading">
+            <!-- Vista de clientes -->
+            <section id="clientes-view" class="module-view" hidden>
+                <div class="module-page-heading">
                     <div>
-                        <h3>Accesos a los módulos</h3>
-                        <p>Selecciona un módulo para continuar con la gestión.</p>
+                        <p class="eyebrow">GESTIÓN DE CLIENTES</p>
+                        <h2>Directorio de clientes</h2>
+                        <p>Organiza la información de contacto de los clientes de tu negocio.</p>
+                    </div>
+
+                    <button id="new-client-button" class="primary-button" type="button">
+                        + Nuevo cliente
+                    </button>
+                </div>
+
+                <div class="client-summary">
+                    <div class="client-summary-icon">♙</div>
+                    <div>
+                        <p>Directorio</p>
+                        <h3>Clientes registrados</h3>
+                        <span>Consulta y administra sus datos de contacto.</span>
                     </div>
                 </div>
 
-                <div class="module-list">
-                    <div class="module-item">
-                        <span class="module-symbol">♙</span>
+                <section class="table-card">
+                    <div class="table-heading">
                         <div>
-                            <strong>Clientes</strong>
-                            <p>Información y datos de contacto.</p>
+                            <h3>Listado de clientes</h3>
+                            <p>Información registrada en el sistema.</p>
                         </div>
-                        <span class="module-arrow">›</span>
+
+                        <input
+                            type="search"
+                            id="client-search"
+                            placeholder="Buscar cliente..."
+                            aria-label="Buscar cliente"
+                        >
                     </div>
 
-                    <div class="module-item">
-                        <span class="module-symbol">▦</span>
+                    <div class="table-responsive">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>Cliente</th>
+                                    <th>Teléfono</th>
+                                    <th>Correo electrónico</th>
+                                    <th>Estado</th>
+                                </tr>
+                            </thead>
+                            <tbody id="client-table-body">
+                                <tr>
+                                    <td colspan="4" class="empty-message">
+                                        Todavía no hay clientes para mostrar.
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </section>
+
+                <section id="client-form-container" class="form-card" hidden>
+                    <div class="form-heading">
                         <div>
-                            <strong>Citas</strong>
-                            <p>Programación y estado de las citas.</p>
+                            <h3>Registrar cliente</h3>
+                            <p>Completa los datos de contacto.</p>
                         </div>
-                        <span class="module-arrow">›</span>
                     </div>
 
-                    <div class="module-item">
-                        <span class="module-symbol">☷</span>
-                        <div>
-                            <strong>Órdenes de servicio</strong>
-                            <p>Servicios realizados y sus valores.</p>
+                    <form id="client-form">
+                        <div class="form-grid">
+                            <div class="form-field">
+                                <label for="client-name">Nombre completo *</label>
+                                <input
+                                    id="client-name"
+                                    name="nombre_completo"
+                                    type="text"
+                                    maxlength="150"
+                                    required
+                                >
+                            </div>
+
+                            <div class="form-field">
+                                <label for="client-phone">Teléfono</label>
+                                <input
+                                    id="client-phone"
+                                    name="telefono"
+                                    type="tel"
+                                    maxlength="30"
+                                >
+                            </div>
+
+                            <div class="form-field">
+                                <label for="client-email">Correo electrónico</label>
+                                <input
+                                    id="client-email"
+                                    name="email"
+                                    type="email"
+                                    maxlength="150"
+                                >
+                            </div>
                         </div>
-                        <span class="module-arrow">›</span>
-                    </div>
-                </div>
+
+                        <p id="client-form-message" class="form-message" role="status"></p>
+
+                        <div class="form-actions">
+                            <button id="cancel-client-button" class="secondary-button" type="button">
+                                Cancelar
+                            </button>
+                            <button class="primary-button" type="submit">
+                                Guardar cliente
+                            </button>
+                        </div>
+                    </form>
+                </section>
             </section>
-
-            <footer class="page-footer">
-                OrdenOne · Organiza fácil. Conserva clientes.
-            </footer>
         </main>
     </div>
 
