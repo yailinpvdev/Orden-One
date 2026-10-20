@@ -8,6 +8,7 @@ const PORT = process.env.PORT || 3000;
 app.use(cors());
 app.use(express.json());
 
+// Página principal de la API
 app.get("/", (req, res) => {
   res.json({
     mensaje: "Bienvenido a OrdenOne",
@@ -15,12 +16,14 @@ app.get("/", (req, res) => {
   });
 });
 
+// Comprobar la API
 app.get("/api/test", (req, res) => {
   res.json({
     mensaje: "La API de OrdenOne funciona correctamente",
   });
 });
 
+// Comprobar la conexión con PostgreSQL
 app.get("/api/test-db", async (req, res) => {
   try {
     const resultado = await pool.query("SELECT NOW() AS fecha_servidor");
@@ -64,7 +67,7 @@ app.post("/api/clientes", async (req, res) => {
   try {
     const { nombre_completo, telefono, email } = req.body;
 
-    if (!nombre_completo || !nombre_completo.trim()) {
+    if (typeof nombre_completo !== "string" || !nombre_completo.trim()) {
       return res.status(400).json({
         mensaje: "El nombre completo es obligatorio",
       });
@@ -97,6 +100,61 @@ app.post("/api/clientes", async (req, res) => {
   }
 });
 
+// Actualizar los datos de un cliente
+app.put("/api/clientes/:id", async (req, res) => {
+  try {
+    const id = Number(req.params.id);
+    const { nombre_completo, telefono, email } = req.body;
+
+    if (!Number.isInteger(id) || id <= 0) {
+      return res.status(400).json({
+        mensaje: "El identificador del cliente no es válido",
+      });
+    }
+
+    if (typeof nombre_completo !== "string" || !nombre_completo.trim()) {
+      return res.status(400).json({
+        mensaje: "El nombre completo es obligatorio",
+      });
+    }
+
+    const resultado = await pool.query(
+      `UPDATE cliente
+       SET nombre_completo = $1,
+           telefono = $2,
+           email = $3
+       WHERE id_cliente = $4
+         AND id_negocio = $5
+       RETURNING id_cliente, nombre_completo, telefono, email, estado`,
+      [
+        nombre_completo.trim(),
+        telefono?.trim() || null,
+        email?.trim() || null,
+        id,
+        1,
+      ],
+    );
+
+    if (resultado.rows.length === 0) {
+      return res.status(404).json({
+        mensaje: "No se encontró el cliente",
+      });
+    }
+
+    res.json({
+      mensaje: "Cliente actualizado correctamente",
+      cliente: resultado.rows[0],
+    });
+  } catch (error) {
+    console.error("Error al actualizar cliente:", error.message);
+
+    res.status(500).json({
+      mensaje: "No se pudo actualizar el cliente",
+    });
+  }
+});
+
+// Iniciar el servidor
 app.listen(PORT, () => {
   console.log(`Servidor OrdenOne ejecutándose en http://localhost:${PORT}`);
 });

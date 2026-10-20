@@ -15,6 +15,14 @@ const mensajeFormulario = document.querySelector("#client-form-message");
 const tablaClientes = document.querySelector("#client-table-body");
 const buscadorClientes = document.querySelector("#client-search");
 
+const campoNombre = document.querySelector("#client-name");
+const campoTelefono = document.querySelector("#client-phone");
+const campoEmail = document.querySelector("#client-email");
+const botonGuardar = formularioCliente.querySelector('button[type="submit"]');
+const tituloFormulario = contenedorFormulario.querySelector("h3");
+const descripcionFormulario =
+  contenedorFormulario.querySelector(".form-heading p");
+
 const nombresSecciones = {
   dashboard: "Panel principal",
   clientes: "Clientes",
@@ -28,6 +36,7 @@ const nombresSecciones = {
 };
 
 let clientes = [];
+let clienteEnEdicion = null;
 
 function mostrarSeccion(seccion) {
   const nombre = nombresSecciones[seccion];
@@ -46,8 +55,7 @@ function mostrarSeccion(seccion) {
   vistaDashboard.hidden = seccion !== "dashboard";
   vistaClientes.hidden = seccion !== "clientes";
 
-  contenedorFormulario.hidden = true;
-  mensajeFormulario.textContent = "";
+  cerrarFormulario();
 
   if (seccion === "clientes") {
     cargarClientes();
@@ -68,20 +76,60 @@ accesosDashboard.forEach((boton) => {
 });
 
 botonNuevoCliente.addEventListener("click", () => {
-  contenedorFormulario.hidden = false;
-  mensajeFormulario.textContent = "";
-  document.querySelector("#client-name").focus();
+  prepararNuevoCliente();
 });
 
 botonCancelarCliente.addEventListener("click", () => {
-  contenedorFormulario.hidden = true;
-  formularioCliente.reset();
-  mensajeFormulario.textContent = "";
+  cerrarFormulario();
 });
 
 function mostrarMensaje(texto, esError = false) {
   mensajeFormulario.textContent = texto;
   mensajeFormulario.style.color = esError ? "#a13c35" : "#398462";
+}
+
+function prepararNuevoCliente() {
+  clienteEnEdicion = null;
+  formularioCliente.reset();
+
+  tituloFormulario.textContent = "Registrar cliente";
+  descripcionFormulario.textContent = "Completa los datos de contacto.";
+  botonGuardar.textContent = "Guardar cliente";
+
+  mensajeFormulario.textContent = "";
+  contenedorFormulario.hidden = false;
+  campoNombre.focus();
+}
+
+function prepararEdicionCliente(cliente) {
+  clienteEnEdicion = cliente.id_cliente;
+
+  campoNombre.value = cliente.nombre_completo || "";
+  campoTelefono.value = cliente.telefono || "";
+  campoEmail.value = cliente.email || "";
+
+  tituloFormulario.textContent = "Editar cliente";
+  descripcionFormulario.textContent = "Actualiza los datos de contacto.";
+  botonGuardar.textContent = "Guardar cambios";
+
+  mensajeFormulario.textContent = "";
+  contenedorFormulario.hidden = false;
+  contenedorFormulario.scrollIntoView({
+    behavior: "smooth",
+    block: "start",
+  });
+  campoNombre.focus();
+}
+
+function cerrarFormulario() {
+  contenedorFormulario.hidden = true;
+  formularioCliente.reset();
+  mensajeFormulario.textContent = "";
+  clienteEnEdicion = null;
+
+  tituloFormulario.textContent = "Registrar cliente";
+  descripcionFormulario.textContent = "Completa los datos de contacto.";
+  botonGuardar.textContent = "Guardar cliente";
 }
 
 function dibujarClientes(lista) {
@@ -91,9 +139,11 @@ function dibujarClientes(lista) {
     const fila = document.createElement("tr");
     const celda = document.createElement("td");
 
-    celda.colSpan = 4;
+    celda.colSpan = 5;
     celda.className = "empty-message";
-    celda.textContent = "Todavía no hay clientes para mostrar.";
+    celda.textContent = buscadorClientes.value.trim()
+      ? "No se encontraron clientes con esa búsqueda."
+      : "Todavía no hay clientes para mostrar.";
 
     fila.appendChild(celda);
     tablaClientes.appendChild(fila);
@@ -115,14 +165,25 @@ function dibujarClientes(lista) {
     const estado = document.createElement("td");
     estado.textContent = cliente.estado || "Activo";
 
-    fila.append(nombre, telefono, email, estado);
+    const acciones = document.createElement("td");
+    const botonEditar = document.createElement("button");
+
+    botonEditar.type = "button";
+    botonEditar.className = "secondary-button";
+    botonEditar.textContent = "Editar";
+    botonEditar.addEventListener("click", () => {
+      prepararEdicionCliente(cliente);
+    });
+
+    acciones.appendChild(botonEditar);
+    fila.append(nombre, telefono, email, estado, acciones);
     tablaClientes.appendChild(fila);
   });
 }
 
 async function cargarClientes() {
   tablaClientes.innerHTML =
-    '<tr><td colspan="4" class="empty-message">Cargando clientes...</td></tr>';
+    '<tr><td colspan="5" class="empty-message">Cargando clientes...</td></tr>';
 
   try {
     const respuesta = await fetch("http://localhost:3000/api/clientes");
@@ -135,7 +196,7 @@ async function cargarClientes() {
     filtrarClientes();
   } catch (error) {
     tablaClientes.innerHTML =
-      '<tr><td colspan="4" class="empty-message">No se pudo conectar con el servidor. Comprueba que el backend esté funcionando.</td></tr>';
+      '<tr><td colspan="5" class="empty-message">No se pudo conectar con el servidor. Comprueba que el backend esté funcionando.</td></tr>';
 
     console.error("Error al cargar clientes:", error);
   }
@@ -164,12 +225,10 @@ buscadorClientes.addEventListener("input", filtrarClientes);
 formularioCliente.addEventListener("submit", async (evento) => {
   evento.preventDefault();
 
-  const botonGuardar = formularioCliente.querySelector('button[type="submit"]');
-
   const datosCliente = {
-    nombre_completo: document.querySelector("#client-name").value.trim(),
-    telefono: document.querySelector("#client-phone").value.trim(),
-    email: document.querySelector("#client-email").value.trim(),
+    nombre_completo: campoNombre.value.trim(),
+    telefono: campoTelefono.value.trim(),
+    email: campoEmail.value.trim(),
   };
 
   if (!datosCliente.nombre_completo) {
@@ -181,8 +240,14 @@ formularioCliente.addEventListener("submit", async (evento) => {
   botonGuardar.textContent = "Guardando...";
 
   try {
-    const respuesta = await fetch("http://localhost:3000/api/clientes", {
-      method: "POST",
+    const estaEditando = clienteEnEdicion !== null;
+
+    const url = estaEditando
+      ? `http://localhost:3000/api/clientes/${clienteEnEdicion}`
+      : "http://localhost:3000/api/clientes";
+
+    const respuesta = await fetch(url, {
+      method: estaEditando ? "PUT" : "POST",
       headers: {
         "Content-Type": "application/json",
       },
@@ -192,23 +257,29 @@ formularioCliente.addEventListener("submit", async (evento) => {
     const resultado = await respuesta.json();
 
     if (!respuesta.ok) {
-      throw new Error(resultado.mensaje || "No se pudo guardar el cliente.");
+      throw new Error(
+        resultado.mensaje || "No se pudieron guardar los datos del cliente.",
+      );
     }
 
-    formularioCliente.reset();
-    contenedorFormulario.hidden = true;
-    mostrarMensaje("Cliente registrado correctamente.");
+    const mensajeExito = estaEditando
+      ? "Cliente actualizado correctamente."
+      : "Cliente registrado correctamente.";
+
+    cerrarFormulario();
+    mostrarMensaje(mensajeExito);
     await cargarClientes();
   } catch (error) {
     mostrarMensaje(
       error.message ||
-        "No se pudo guardar el cliente. Comprueba que el servidor esté funcionando.",
+        "No se pudieron guardar los datos. Comprueba que el servidor esté funcionando.",
       true,
     );
 
     console.error("Error al guardar cliente:", error);
   } finally {
     botonGuardar.disabled = false;
-    botonGuardar.textContent = "Guardar cliente";
+    botonGuardar.textContent =
+      clienteEnEdicion !== null ? "Guardar cambios" : "Guardar cliente";
   }
 });
