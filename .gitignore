@@ -1,0 +1,10 @@
+
+# Variables de entorno
+backend/.env
+
+# Dependencias de Node.js
+backend/node_modules/
+
+# Archivos del sistema
+.DS_Store
+
