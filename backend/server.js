@@ -154,6 +154,76 @@ app.put("/api/clientes/:id", async (req, res) => {
   }
 });
 
+/* =========================================
+   MÓDULO DE EMPLEADOS
+========================================= */
+
+// Consultar los empleados registrados
+app.get("/api/empleados", async (req, res) => {
+  try {
+    const resultado = await pool.query(
+      `SELECT id_empleado, nombre_completo, telefono, email, cargo, estado
+       FROM empleado
+       WHERE id_negocio = $1
+       ORDER BY id_empleado DESC`,
+      [1],
+    );
+
+    res.json(resultado.rows);
+  } catch (error) {
+    console.error("Error al consultar empleados:", error.message);
+
+    res.status(500).json({
+      mensaje: "No se pudieron consultar los empleados",
+    });
+  }
+});
+
+// Registrar un empleado nuevo
+app.post("/api/empleados", async (req, res) => {
+  try {
+    const { nombre_completo, telefono, email, cargo } = req.body;
+
+    if (typeof nombre_completo !== "string" || !nombre_completo.trim()) {
+      return res.status(400).json({
+        mensaje: "El nombre completo es obligatorio",
+      });
+    }
+
+    if (typeof cargo !== "string" || !cargo.trim()) {
+      return res.status(400).json({
+        mensaje: "El cargo es obligatorio",
+      });
+    }
+
+    const resultado = await pool.query(
+      `INSERT INTO empleado
+        (id_negocio, nombre_completo, telefono, email, cargo, estado)
+       VALUES ($1, $2, $3, $4, $5, $6)
+       RETURNING id_empleado, nombre_completo, telefono, email, cargo, estado`,
+      [
+        1,
+        nombre_completo.trim(),
+        typeof telefono === "string" ? telefono.trim() || null : null,
+        typeof email === "string" ? email.trim() || null : null,
+        cargo.trim(),
+        "Activo",
+      ],
+    );
+
+    res.status(201).json({
+      mensaje: "Empleado registrado correctamente",
+      empleado: resultado.rows[0],
+    });
+  } catch (error) {
+    console.error("Error al registrar empleado:", error.message);
+
+    res.status(500).json({
+      mensaje: "No se pudo registrar el empleado",
+    });
+  }
+});
+
 // Iniciar el servidor
 app.listen(PORT, () => {
   console.log(`Servidor OrdenOne ejecutándose en http://localhost:${PORT}`);

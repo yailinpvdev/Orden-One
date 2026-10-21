@@ -1,4 +1,3 @@
-```html
 <!DOCTYPE html>
 <html lang="es">
 <head>
@@ -283,10 +282,146 @@
                     </form>
                 </section>
             </section>
+
+<!-- Vista de empleados -->
+<section id="empleados-view" class="module-view" hidden>
+    <div class="module-page-heading">
+        <div>
+            <p class="eyebrow">GESTIÓN DEL EQUIPO</p>
+            <h2>Empleados y usuarios</h2>
+            <p>Organiza la información de las personas que trabajan en tu negocio.</p>
+        </div>
+
+        <button id="new-employee-button" class="primary-button" type="button">
+            + Nuevo empleado
+        </button>
+    </div>
+
+    <div class="client-summary">
+        <div class="client-summary-icon">♙</div>
+        <div>
+            <p>Equipo de trabajo</p>
+            <h3>Empleados registrados</h3>
+            <span>Consulta y administra los datos de tu equipo.</span>
+        </div>
+    </div>
+
+    <section class="table-card">
+        <div class="table-heading">
+            <div>
+                <h3>Listado de empleados</h3>
+                <p>Información registrada en el sistema.</p>
+            </div>
+
+            <input
+                type="search"
+                id="employee-search"
+                placeholder="Buscar empleado..."
+                aria-label="Buscar empleado"
+            >
+        </div>
+
+        <div class="table-responsive">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Empleado</th>
+                        <th>Teléfono</th>
+                        <th>Correo electrónico</th>
+                        <th>Cargo</th>
+                        <th>Estado</th>
+                        <th>Acciones</th>
+                    </tr>
+                </thead>
+                <tbody id="employee-table-body">
+                    <tr>
+                        <td colspan="6" class="empty-message">
+                            Los empleados aparecerán aquí.
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </section>
+
+    <div id="employee-form-container" class="form-card" hidden>
+        <div class="form-heading">
+            <div>
+                <h3 id="employee-form-title">Registrar empleado</h3>
+                <p>Completa los datos del integrante del equipo.</p>
+            </div>
+        </div>
+
+       
+<form id="employee-form">
+    <div class="form-grid">
+        <div class="form-field">
+            <label for="employee-name">Nombre completo *</label>
+            <input
+                type="text"
+                id="employee-name"
+                name="nombre_completo"
+                maxlength="150"
+                required
+            >
+        </div>
+
+        <div class="form-field">
+            <label for="employee-phone">Teléfono</label>
+            <input
+                type="tel"
+                id="employee-phone"
+                name="telefono"
+                maxlength="30"
+            >
+        </div>
+
+        <div class="form-field">
+            <label for="employee-email">Correo electrónico</label>
+            <input
+                type="email"
+                id="employee-email"
+                name="email"
+                maxlength="150"
+            >
+        </div>
+
+        <div class="form-field">
+            <label for="employee-role">Cargo *</label>
+            <input
+                type="text"
+                id="employee-role"
+                name="cargo"
+                maxlength="100"
+                placeholder="Ej. Estilista"
+                required
+            >
+        </div>
+    </div>
+
+    <p id="employee-form-message" class="form-message" role="status"></p>
+
+    <div class="form-actions">
+        <button
+            id="cancel-employee-button"
+            class="secondary-button"
+            type="button"
+        >
+            Cancelar
+        </button>
+
+        <button class="primary-button" type="submit">
+            Guardar empleado
+        </button>
+    </div>
+</form>
+
+    </div>
+</section>
+
         </main>
     </div>
 
     <script src="app.js"></script>
 </body>
 </html>
-```

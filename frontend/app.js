@@ -6,6 +6,46 @@ const rutaPagina = document.querySelector("#breadcrumb-section");
 
 const vistaDashboard = document.querySelector("#dashboard-view");
 const vistaClientes = document.querySelector("#clientes-view");
+const vistaEmpleados = document.querySelector("#empleados-view");
+
+const botonNuevoEmpleado = document.querySelector("#new-employee-button");
+const botonCancelarEmpleado = document.querySelector("#cancel-employee-button");
+const formularioEmpleado = document.querySelector("#employee-form");
+const contenedorFormularioEmpleado = document.querySelector(
+  "#employee-form-container",
+);
+const mensajeFormularioEmpleado = document.querySelector(
+  "#employee-form-message",
+);
+
+// Mantener cerrado el formulario de empleados al iniciar.
+contenedorFormularioEmpleado.hidden = true;
+
+// Abrir el formulario al pulsar Nuevo empleado.
+botonNuevoEmpleado.addEventListener("click", () => {
+  formularioEmpleado.reset();
+  mensajeFormularioEmpleado.textContent = "";
+  contenedorFormularioEmpleado.hidden = false;
+
+  const campoNombreEmpleado = document.querySelector("#employee-name");
+
+  if (campoNombreEmpleado) {
+    campoNombreEmpleado.focus();
+  }
+});
+
+// Cerrar el formulario al pulsar Cancelar.
+botonCancelarEmpleado.addEventListener("click", () => {
+  formularioEmpleado.reset();
+  contenedorFormularioEmpleado.hidden = true;
+  mensajeFormularioEmpleado.textContent = "";
+});
+
+const tablaEmpleados = document.querySelector("#employee-table-body");
+const buscadorEmpleados = document.querySelector("#employee-search");
+
+let empleados = [];
+let empleadoEnEdicion = null;
 
 const botonNuevoCliente = document.querySelector("#new-client-button");
 const botonCancelarCliente = document.querySelector("#cancel-client-button");
@@ -54,11 +94,15 @@ function mostrarSeccion(seccion) {
 
   vistaDashboard.hidden = seccion !== "dashboard";
   vistaClientes.hidden = seccion !== "clientes";
+  vistaEmpleados.hidden = seccion !== "empleados";
 
   cerrarFormulario();
 
   if (seccion === "clientes") {
     cargarClientes();
+  }
+  if (seccion === "empleados") {
+    cargarEmpleados();
   }
 }
 
@@ -281,5 +325,151 @@ formularioCliente.addEventListener("submit", async (evento) => {
     botonGuardar.disabled = false;
     botonGuardar.textContent =
       clienteEnEdicion !== null ? "Guardar cambios" : "Guardar cliente";
+  }
+});
+
+async function cargarEmpleados() {
+  tablaEmpleados.innerHTML =
+    '<tr><td colspan="6" class="empty-message">Cargando empleados...</td></tr>';
+
+  try {
+    const respuesta = await fetch("http://localhost:3000/api/empleados");
+
+    if (!respuesta.ok) {
+      throw new Error("No se pudieron consultar los empleados.");
+    }
+
+    empleados = await respuesta.json();
+    filtrarEmpleados();
+  } catch (error) {
+    tablaEmpleados.innerHTML =
+      '<tr><td colspan="6" class="empty-message">No se pudieron cargar los empleados. Comprueba que el servidor esté funcionando.</td></tr>';
+
+    console.error("Error al cargar empleados:", error);
+  }
+}
+
+function filtrarEmpleados() {
+  const busqueda = buscadorEmpleados.value.trim().toLowerCase();
+
+  const resultado = empleados.filter((empleado) => {
+    const nombre = (empleado.nombre_completo || "").toLowerCase();
+    const telefono = (empleado.telefono || "").toLowerCase();
+    const email = (empleado.email || "").toLowerCase();
+    const cargo = (empleado.cargo || "").toLowerCase();
+
+    return (
+      nombre.includes(busqueda) ||
+      telefono.includes(busqueda) ||
+      email.includes(busqueda) ||
+      cargo.includes(busqueda)
+    );
+  });
+
+  dibujarEmpleados(resultado);
+}
+
+function dibujarEmpleados(lista) {
+  tablaEmpleados.replaceChildren();
+
+  if (lista.length === 0) {
+    const fila = document.createElement("tr");
+    const celda = document.createElement("td");
+
+    celda.colSpan = 6;
+    celda.className = "empty-message";
+    celda.textContent = "Todavía no hay empleados para mostrar.";
+
+    fila.appendChild(celda);
+    tablaEmpleados.appendChild(fila);
+    return;
+  }
+
+  lista.forEach((empleado) => {
+    const fila = document.createElement("tr");
+
+    const nombre = document.createElement("td");
+    nombre.textContent = empleado.nombre_completo;
+
+    const telefono = document.createElement("td");
+    telefono.textContent = empleado.telefono || "—";
+
+    const email = document.createElement("td");
+    email.textContent = empleado.email || "—";
+
+    const cargo = document.createElement("td");
+    cargo.textContent = empleado.cargo || "—";
+
+    const estado = document.createElement("td");
+    estado.textContent = empleado.estado || "Activo";
+
+    const acciones = document.createElement("td");
+    acciones.textContent = "—";
+
+    fila.append(nombre, telefono, email, cargo, estado, acciones);
+    tablaEmpleados.appendChild(fila);
+  });
+}
+
+buscadorEmpleados.addEventListener("input", filtrarEmpleados);
+
+const campoNombreEmpleado = document.querySelector("#employee-name");
+const campoTelefonoEmpleado = document.querySelector("#employee-phone");
+const campoEmailEmpleado = document.querySelector("#employee-email");
+const campoCargoEmpleado = document.querySelector("#employee-role");
+
+formularioEmpleado.addEventListener("submit", async (evento) => {
+  evento.preventDefault();
+
+  const datosEmpleado = {
+    nombre_completo: campoNombreEmpleado.value.trim(),
+    telefono: campoTelefonoEmpleado.value.trim(),
+    email: campoEmailEmpleado.value.trim(),
+    cargo: campoCargoEmpleado.value.trim(),
+  };
+
+  if (!datosEmpleado.nombre_completo || !datosEmpleado.cargo) {
+    mensajeFormularioEmpleado.textContent =
+      "El nombre completo y el cargo son obligatorios.";
+    mensajeFormularioEmpleado.style.color = "#a13c35";
+    return;
+  }
+
+  const botonGuardarEmpleado = formularioEmpleado.querySelector(
+    'button[type="submit"]',
+  );
+
+  botonGuardarEmpleado.disabled = true;
+  botonGuardarEmpleado.textContent = "Guardando...";
+
+  try {
+    const respuesta = await fetch("http://localhost:3000/api/empleados", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(datosEmpleado),
+    });
+
+    const resultado = await respuesta.json();
+
+    if (!respuesta.ok) {
+      throw new Error(resultado.mensaje || "No se pudo registrar el empleado.");
+    }
+
+    formularioEmpleado.reset();
+    contenedorFormularioEmpleado.hidden = true;
+
+    await cargarEmpleados();
+
+    alert("Empleado registrado correctamente.");
+  } catch (error) {
+    mensajeFormularioEmpleado.textContent = error.message;
+    mensajeFormularioEmpleado.style.color = "#a13c35";
+
+    console.error("Error al guardar empleado:", error);
+  } finally {
+    botonGuardarEmpleado.disabled = false;
+    botonGuardarEmpleado.textContent = "Guardar empleado";
   }
 });
