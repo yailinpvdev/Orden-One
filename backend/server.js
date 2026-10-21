@@ -224,6 +224,68 @@ app.post("/api/empleados", async (req, res) => {
   }
 });
 
+// Actualizar los datos de un empleado
+app.put("/api/empleados/:id", async (req, res) => {
+  try {
+    const id = Number(req.params.id);
+    const { nombre_completo, telefono, email, cargo } = req.body;
+
+    if (!Number.isInteger(id) || id <= 0) {
+      return res.status(400).json({
+        mensaje: "El identificador del empleado no es válido",
+      });
+    }
+
+    if (typeof nombre_completo !== "string" || !nombre_completo.trim()) {
+      return res.status(400).json({
+        mensaje: "El nombre completo es obligatorio",
+      });
+    }
+
+    if (typeof cargo !== "string" || !cargo.trim()) {
+      return res.status(400).json({
+        mensaje: "El cargo es obligatorio",
+      });
+    }
+
+    const resultado = await pool.query(
+      `UPDATE empleado
+       SET nombre_completo = $1,
+           telefono = $2,
+           email = $3,
+           cargo = $4
+       WHERE id_empleado = $5
+         AND id_negocio = $6
+       RETURNING id_empleado, nombre_completo, telefono, email, cargo, estado`,
+      [
+        nombre_completo.trim(),
+        typeof telefono === "string" ? telefono.trim() || null : null,
+        typeof email === "string" ? email.trim() || null : null,
+        cargo.trim(),
+        id,
+        1,
+      ],
+    );
+
+    if (resultado.rows.length === 0) {
+      return res.status(404).json({
+        mensaje: "No se encontró el empleado",
+      });
+    }
+
+    res.json({
+      mensaje: "Empleado actualizado correctamente",
+      empleado: resultado.rows[0],
+    });
+  } catch (error) {
+    console.error("Error al actualizar empleado:", error.message);
+
+    res.status(500).json({
+      mensaje: "No se pudo actualizar el empleado",
+    });
+  }
+});
+
 // Iniciar el servidor
 app.listen(PORT, () => {
   console.log(`Servidor OrdenOne ejecutándose en http://localhost:${PORT}`);

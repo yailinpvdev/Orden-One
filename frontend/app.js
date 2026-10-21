@@ -328,6 +328,35 @@ formularioCliente.addEventListener("submit", async (evento) => {
   }
 });
 
+function prepararEdicionEmpleado(empleado) {
+  empleadoEnEdicion = empleado.id_empleado;
+
+  campoNombreEmpleado.value = empleado.nombre_completo || "";
+  campoTelefonoEmpleado.value = empleado.telefono || "";
+  campoEmailEmpleado.value = empleado.email || "";
+  campoCargoEmpleado.value = empleado.cargo || "";
+
+  document.querySelector("#employee-form-title").textContent =
+    "Editar empleado";
+
+  mensajeFormularioEmpleado.textContent = "";
+
+  const botonGuardarEmpleado = formularioEmpleado.querySelector(
+    'button[type="submit"]',
+  );
+
+  botonGuardarEmpleado.textContent = "Guardar cambios";
+
+  contenedorFormularioEmpleado.hidden = false;
+
+  contenedorFormularioEmpleado.scrollIntoView({
+    behavior: "smooth",
+    block: "start",
+  });
+
+  campoNombreEmpleado.focus();
+}
+
 async function cargarEmpleados() {
   tablaEmpleados.innerHTML =
     '<tr><td colspan="6" class="empty-message">Cargando empleados...</td></tr>';
@@ -404,7 +433,17 @@ function dibujarEmpleados(lista) {
     estado.textContent = empleado.estado || "Activo";
 
     const acciones = document.createElement("td");
-    acciones.textContent = "—";
+    const botonEditarEmpleado = document.createElement("button");
+
+    botonEditarEmpleado.type = "button";
+    botonEditarEmpleado.className = "secondary-button";
+    botonEditarEmpleado.textContent = "Editar";
+
+    botonEditarEmpleado.addEventListener("click", () => {
+      prepararEdicionEmpleado(empleado);
+    });
+
+    acciones.appendChild(botonEditarEmpleado);
 
     fila.append(nombre, telefono, email, cargo, estado, acciones);
     tablaEmpleados.appendChild(fila);
@@ -443,8 +482,14 @@ formularioEmpleado.addEventListener("submit", async (evento) => {
   botonGuardarEmpleado.textContent = "Guardando...";
 
   try {
-    const respuesta = await fetch("http://localhost:3000/api/empleados", {
-      method: "POST",
+    const estaEditando = empleadoEnEdicion !== null;
+
+    const url = estaEditando
+      ? `http://localhost:3000/api/empleados/${empleadoEnEdicion}`
+      : "http://localhost:3000/api/empleados";
+
+    const respuesta = await fetch(url, {
+      method: estaEditando ? "PUT" : "POST",
       headers: {
         "Content-Type": "application/json",
       },
@@ -459,10 +504,20 @@ formularioEmpleado.addEventListener("submit", async (evento) => {
 
     formularioEmpleado.reset();
     contenedorFormularioEmpleado.hidden = true;
+    empleadoEnEdicion = null;
+
+    document.querySelector("#employee-form-title").textContent =
+      "Registrar empleado";
+
+    botonGuardarEmpleado.textContent = "Guardar empleado";
 
     await cargarEmpleados();
 
-    alert("Empleado registrado correctamente.");
+    alert(
+      estaEditando
+        ? "Empleado actualizado correctamente."
+        : "Empleado registrado correctamente.",
+    );
   } catch (error) {
     mensajeFormularioEmpleado.textContent = error.message;
     mensajeFormularioEmpleado.style.color = "#a13c35";
@@ -470,6 +525,7 @@ formularioEmpleado.addEventListener("submit", async (evento) => {
     console.error("Error al guardar empleado:", error);
   } finally {
     botonGuardarEmpleado.disabled = false;
-    botonGuardarEmpleado.textContent = "Guardar empleado";
+    botonGuardarEmpleado.textContent =
+      empleadoEnEdicion !== null ? "Guardar cambios" : "Guardar empleado";
   }
 });
