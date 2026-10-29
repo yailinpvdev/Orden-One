@@ -7,6 +7,7 @@ const rutaPagina = document.querySelector("#breadcrumb-section");
 const vistaDashboard = document.querySelector("#dashboard-view");
 const vistaClientes = document.querySelector("#clientes-view");
 const vistaEmpleados = document.querySelector("#empleados-view");
+const vistaServicios = document.querySelector("#servicios-view");
 
 const botonNuevoEmpleado = document.querySelector("#new-employee-button");
 const botonCancelarEmpleado = document.querySelector("#cancel-employee-button");
@@ -95,6 +96,7 @@ function mostrarSeccion(seccion) {
   vistaDashboard.hidden = seccion !== "dashboard";
   vistaClientes.hidden = seccion !== "clientes";
   vistaEmpleados.hidden = seccion !== "empleados";
+  vistaServicios.hidden = seccion !== "servicios";
 
   cerrarFormulario();
 
@@ -103,6 +105,9 @@ function mostrarSeccion(seccion) {
   }
   if (seccion === "empleados") {
     cargarEmpleados();
+  }
+  if (seccion === "servicios") {
+    cargarServicios();
   }
 }
 
@@ -377,6 +382,259 @@ async function cargarEmpleados() {
     console.error("Error al cargar empleados:", error);
   }
 }
+
+const tablaServicios = document.querySelector("#service-table-body");
+const botonNuevoServicio = document.querySelector("#new-service-button");
+const botonCancelarServicio = document.querySelector("#cancel-service-button");
+const formularioServicio = document.querySelector("#service-form");
+const contenedorFormularioServicio = document.querySelector(
+  "#service-form-container",
+);
+const mensajeFormularioServicio = document.querySelector(
+  "#service-form-message",
+);
+const buscadorServicios = document.querySelector("#service-search");
+
+let servicios = [];
+let servicioEnEdicion = null;
+// Abrir el formulario para registrar un servicio
+botonNuevoServicio.addEventListener("click", () => {
+  formularioServicio.reset();
+  servicioEnEdicion = null;
+  document.querySelector("#service-form-title").textContent =
+    "Registrar servicio";
+  formularioServicio.querySelector('button[type="submit"]').textContent =
+    "Guardar servicio";
+  mensajeFormularioServicio.textContent = "";
+  contenedorFormularioServicio.hidden = false;
+  contenedorFormularioServicio.scrollIntoView({
+    behavior: "smooth",
+    block: "start",
+  });
+  document.querySelector("#service-name").focus();
+});
+
+// Cerrar el formulario al pulsar Cancelar
+botonCancelarServicio.addEventListener("click", () => {
+  formularioServicio.reset();
+  mensajeFormularioServicio.textContent = "";
+  contenedorFormularioServicio.hidden = true;
+  servicioEnEdicion = null;
+  document.querySelector("#service-form-title").textContent =
+    "Registrar servicio";
+  formularioServicio.querySelector('button[type="submit"]').textContent =
+    "Guardar servicio";
+});
+
+function prepararEdicionServicio(servicio) {
+  servicioEnEdicion = servicio.id_servicio;
+
+  document.querySelector("#service-name").value = servicio.nombre || "";
+  document.querySelector("#service-price").value = Number(servicio.precio_base);
+  document.querySelector("#service-duration").value =
+    servicio.duracion_estimada ?? "";
+  document.querySelector("#service-description").value =
+    servicio.descripcion || "";
+
+  document.querySelector("#service-form-title").textContent = "Editar servicio";
+
+  formularioServicio.querySelector('button[type="submit"]').textContent =
+    "Guardar cambios";
+
+  mensajeFormularioServicio.textContent = "";
+  contenedorFormularioServicio.hidden = false;
+
+  contenedorFormularioServicio.scrollIntoView({
+    behavior: "smooth",
+    block: "start",
+  });
+
+  document.querySelector("#service-name").focus();
+}
+
+async function cargarServicios() {
+  tablaServicios.innerHTML =
+    '<tr><td colspan="6" class="empty-message">Cargando servicios...</td></tr>';
+
+  try {
+    const respuesta = await fetch("http://localhost:3000/api/servicios");
+
+    if (!respuesta.ok) {
+      throw new Error("No se pudieron consultar los servicios.");
+    }
+
+    servicios = await respuesta.json();
+    filtrarServicios();
+  } catch (error) {
+    tablaServicios.innerHTML =
+      '<tr><td colspan="6" class="empty-message">No se pudieron cargar los servicios.</td></tr>';
+
+    console.error("Error al cargar servicios:", error);
+  }
+}
+
+function dibujarServicios(lista) {
+  tablaServicios.replaceChildren();
+
+  if (lista.length === 0) {
+    const fila = document.createElement("tr");
+    const celda = document.createElement("td");
+
+    celda.colSpan = 6;
+    celda.className = "empty-message";
+    celda.textContent = buscadorServicios.value.trim()
+      ? "No se encontraron servicios con esa búsqueda."
+      : "Todavía no hay servicios para mostrar.";
+
+    fila.appendChild(celda);
+    tablaServicios.appendChild(fila);
+    return;
+  }
+
+  lista.forEach((servicio) => {
+    const fila = document.createElement("tr");
+
+    const nombre = document.createElement("td");
+    nombre.textContent = servicio.nombre;
+
+    const descripcion = document.createElement("td");
+    descripcion.textContent = servicio.descripcion || "—";
+
+    const precio = document.createElement("td");
+
+    const valorPrecio = Number(servicio.precio_base);
+    console.log(
+      "Precio recibido:",
+      servicio.precio_base,
+      "| Precio convertido:",
+      valorPrecio,
+    );
+
+    precio.textContent = `$${valorPrecio.toLocaleString("es-CO", {
+      minimumFractionDigits: 0,
+      maximumFractionDigits: 2,
+      useGrouping: true,
+    })}`;
+
+    const duracion = document.createElement("td");
+    duracion.textContent = servicio.duracion_estimada;
+
+    const estado = document.createElement("td");
+    estado.textContent = servicio.estado || "Activo";
+
+    const acciones = document.createElement("td");
+
+    const botonEditar = document.createElement("button");
+    botonEditar.type = "button";
+    botonEditar.textContent = "Editar";
+    botonEditar.className = "secondary-button";
+
+    botonEditar.addEventListener("click", () => {
+      prepararEdicionServicio(servicio);
+    });
+
+    acciones.appendChild(botonEditar);
+
+    fila.append(nombre, descripcion, precio, duracion, estado, acciones);
+    tablaServicios.appendChild(fila);
+  });
+}
+
+function filtrarServicios() {
+  const busqueda = buscadorServicios.value.trim().toLowerCase();
+
+  const resultado = servicios.filter((servicio) =>
+    [servicio.nombre, servicio.descripcion].some((dato) =>
+      (dato || "").toLowerCase().includes(busqueda),
+    ),
+  );
+
+  dibujarServicios(resultado);
+}
+
+buscadorServicios.addEventListener("input", filtrarServicios);
+
+formularioServicio.addEventListener("submit", async (evento) => {
+  evento.preventDefault();
+
+  const datos = new FormData(formularioServicio);
+
+  const precioTexto = String(datos.get("precio_base") ?? "").trim();
+  const precioNormalizado = precioTexto.replace(/\./g, "").replace(",", ".");
+  const precio = Number(precioNormalizado);
+  const duracion = Number(datos.get("duracion_estimada"));
+
+  if (!Number.isFinite(precio) || precio < 0) {
+    mensajeFormularioServicio.textContent =
+      "Introduce un precio válido, usando punto para los decimales.";
+    return;
+  }
+
+  if (!Number.isInteger(duracion) || duracion < 1) {
+    mensajeFormularioServicio.textContent =
+      "La duración debe ser un número entero mayor que cero.";
+    return;
+  }
+
+  const servicio = {
+    nombre: String(datos.get("nombre") || "").trim(),
+    precio_base: precio,
+    duracion_estimada: duracion,
+    descripcion: String(datos.get("descripcion") || "").trim(),
+  };
+
+  const botonGuardar = formularioServicio.querySelector(
+    'button[type="submit"]',
+  );
+
+  botonGuardar.disabled = true;
+  botonGuardar.textContent = "Guardando...";
+  mensajeFormularioServicio.textContent = "";
+
+  try {
+    const editando = servicioEnEdicion !== null;
+
+    const respuesta = await fetch(
+      editando
+        ? `http://localhost:3000/api/servicios/${servicioEnEdicion}`
+        : "http://localhost:3000/api/servicios",
+      {
+        method: editando ? "PUT" : "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(servicio),
+      },
+    );
+
+    const resultado = await respuesta.json();
+
+    if (!respuesta.ok) {
+      throw new Error(resultado.mensaje || "No se pudo guardar el servicio.");
+    }
+
+    mensajeFormularioServicio.textContent = editando
+      ? "¡Servicio actualizado correctamente!"
+      : "¡Servicio registrado correctamente!";
+
+    formularioServicio.reset();
+    servicioEnEdicion = null;
+    document.querySelector("#service-form-title").textContent =
+      "Registrar servicio";
+    formularioServicio.querySelector('button[type="submit"]').textContent =
+      "Guardar servicio";
+    await cargarServicios();
+
+    contenedorFormularioServicio.hidden = true;
+  } catch (error) {
+    mensajeFormularioServicio.textContent = error.message;
+    console.error("Error al guardar el servicio:", error);
+  } finally {
+    botonGuardar.disabled = false;
+    botonGuardar.textContent =
+      servicioEnEdicion !== null ? "Guardar cambios" : "Guardar servicio";
+  }
+});
 
 function filtrarEmpleados() {
   const busqueda = buscadorEmpleados.value.trim().toLowerCase();

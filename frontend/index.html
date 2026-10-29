@@ -419,6 +419,145 @@
     </div>
 </section>
 
+
+<!-- Vista de servicios -->
+<section id="servicios-view" class="module-view" hidden>
+    <div class="module-page-heading">
+        <div>
+            <p class="eyebrow">GESTIÓN DE SERVICIOS</p>
+            <h2>Catálogo de servicios</h2>
+            <p>Administra los servicios, sus precios y su duración estimada.</p>
+        </div>
+
+        <button id="new-service-button" class="primary-button" type="button">
+            + Nuevo servicio
+        </button>
+    </div>
+
+    <div class="client-summary">
+        <div class="client-summary-icon">▤</div>
+        <div>
+            <p>Catálogo</p>
+            <h3>Servicios registrados</h3>
+            <span>Consulta y administra los servicios de tu negocio.</span>
+        </div>
+    </div>
+
+    <section class="table-card">
+        <div class="table-heading">
+            <div>
+                <h3>Listado de servicios</h3>
+                <p>Información registrada en el sistema.</p>
+            </div>
+
+            <input
+                type="search"
+                id="service-search"
+                placeholder="Buscar servicio..."
+                aria-label="Buscar servicio"
+            >
+        </div>
+
+        <div class="table-responsive">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Servicio</th>
+                        <th>Descripción</th>
+                        <th>Precio</th>
+                        <th>Duración (min)</th>
+                        <th>Estado</th>
+                        <th>Acciones</th>
+                    </tr>
+                </thead>
+
+                <tbody id="service-table-body">
+                    <tr>
+                        <td colspan="6" class="empty-message">
+                            Todavía no hay servicios para mostrar.
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </section>
+
+    <section id="service-form-container" class="form-card" hidden>
+        <div class="form-heading">
+            <div>
+                <h3 id="service-form-title">Registrar servicio</h3>
+                <p>Completa los datos del servicio.</p>
+            </div>
+        </div>
+
+        <form id="service-form">
+            <div class="form-grid">
+                <div class="form-field">
+                    <label for="service-name">Nombre del servicio *</label>
+                    <input
+                        id="service-name"
+                        name="nombre"
+                        type="text"
+                        maxlength="150"
+                        required
+                    >
+                </div>
+
+                <div class="form-field">
+                    <label for="service-price">Precio base *</label>
+                    <input
+                        id="service-price"
+                        name="precio_base"
+                        type="number"
+                        min="0"
+                        step="0.01"
+                        required
+                    >
+                </div>
+
+                <div class="form-field">
+                    <label for="service-duration">Duración estimada (minutos) *</label>
+                    <input
+                        id="service-duration"
+                        name="duracion_estimada"
+                        type="number"
+                        min="1"
+                        step="1"
+                        required
+                    >
+                </div>
+
+                <div class="form-field">
+                    <label for="service-description">Descripción</label>
+                    <textarea
+                        id="service-description"
+                        name="descripcion"
+                        rows="3"
+                        maxlength="500"
+                    ></textarea>
+                </div>
+            </div>
+
+            <p id="service-form-message" class="form-message" role="status"></p>
+
+            <div class="form-actions">
+                <button
+                    id="cancel-service-button"
+                    class="secondary-button"
+                    type="button"
+                >
+                    Cancelar
+                </button>
+
+                <button class="primary-button" type="submit">
+                    Guardar servicio
+                </button>
+            </div>
+        </form>
+    </section>
+</section>
+
+
         </main>
     </div>
 
