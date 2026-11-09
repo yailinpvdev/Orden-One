@@ -460,6 +460,116 @@ app.put("/api/servicios/:id", async (req, res) => {
   }
 });
 
+/* =========================================
+   MÓDULO DE CITAS
+========================================= */
+
+// Consultar citas registradas
+app.get("/api/citas", async (req, res) => {
+  try {
+    const resultado = await pool.query(
+      `SELECT
+        c.id_cita,
+        cl.nombre_completo AS cliente,
+        e.nombre_completo AS empleado,
+        c.fecha,
+        c.hora,
+        c.estado,
+        c.observaciones,
+        ARRAY_AGG(s.nombre) AS servicios
+      FROM cita c
+      INNER JOIN cliente cl ON c.id_cliente = cl.id_cliente
+      LEFT JOIN empleado e ON c.id_empleado = e.id_empleado
+      LEFT JOIN cita_servicio cs ON c.id_cita = cs.id_cita
+      LEFT JOIN servicio s ON cs.id_servicio = s.id_servicio
+      WHERE c.id_negocio = $1
+      GROUP BY
+        c.id_cita,
+        cl.nombre_completo,
+        e.nombre_completo
+      ORDER BY c.fecha DESC, c.hora DESC`,
+      [1],
+    );
+
+    res.json(resultado.rows);
+  } catch (error) {
+    console.error("Error al consultar citas:", error.message);
+
+    res.status(500).json({
+      mensaje: "No se pudieron consultar las citas",
+    });
+  }
+});
+
+// Registrar una nueva cita
+app.post("/api/citas", async (req, res) => {
+  const {
+    id_cliente,
+    id_empleado,
+    fecha,
+    hora,
+    estado,
+    observaciones,
+    id_servicios,
+  } = req.body;
+
+  const conexion = await pool.connect();
+
+  try {
+    await conexion.query("BEGIN");
+
+    const resultado = await conexion.query(
+      `INSERT INTO cita (
+        id_negocio,
+        id_cliente,
+        id_empleado,
+        fecha,
+        hora,
+        estado,
+        observaciones
+      )
+      VALUES ($1, $2, $3, $4, $5, $6, $7)
+      RETURNING id_cita`,
+      [
+        1,
+        id_cliente,
+        id_empleado || null,
+        fecha,
+        hora,
+        estado,
+        observaciones || null,
+      ],
+    );
+
+    const id_cita = resultado.rows[0].id_cita;
+
+    for (const id_servicio of id_servicios) {
+      await conexion.query(
+        `INSERT INTO cita_servicio (id_cita, id_servicio)
+         VALUES ($1, $2)`,
+        [id_cita, id_servicio],
+      );
+    }
+
+    await conexion.query("COMMIT");
+
+    res.status(201).json({
+      mensaje: "Cita registrada correctamente",
+      id_cita,
+    });
+  } catch (error) {
+    await conexion.query("ROLLBACK");
+
+    console.error("Error al registrar cita:", error.message);
+
+    res.status(500).json({
+      mensaje: "No se pudo registrar la cita",
+    });
+  } finally {
+    conexion.release();
+  }
+});
+
 // Iniciar el servidor
 app.listen(PORT, () => {
   console.log(`Servidor OrdenOne ejecutándose en http://localhost:${PORT}`);
