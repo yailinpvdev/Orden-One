@@ -299,82 +299,84 @@
   </div>
 
   <!-- Formulario de citas -->
-  <section id="appointment-form-container" class="table-card" hidden>
-    <div class="table-heading">
-      <div class="form-heading">
-        <h3 id="appointment-form-title">Registrar cita</h3>
-        <p>Completa la información para programar una nueva cita.</p>
-      </div>
+
+<section id="appointment-form-container" class="form-card appointment-form-card" hidden>
+    <div class="form-heading">
+        <div>
+            <p class="eyebrow">NUEVA RESERVA</p>
+            <h3>Registrar cita</h3>
+            <p>Completa los datos para programar la atención del cliente.</p>
+        </div>
     </div>
 
     <form id="appointment-form">
+        <div class="appointment-form-grid">
 
-      <div class="form-grid">
+            <div class="form-field">
+                <label for="appointment-client">Cliente *</label>
+                <select id="appointment-client" required>
+                    <option value="">Selecciona un cliente</option>
+                </select>
+            </div>
 
-        <div class="form-group">
-          <label for="appointment-client">Cliente</label>
-          <select id="appointment-client" required>
-            <option value="">Selecciona un cliente</option>
-          </select>
+            <div class="form-field">
+                <label for="appointment-employee">Empleado asignado</label>
+                <select id="appointment-employee">
+                    <option value="">Selecciona un empleado</option>
+                </select>
+            </div>
+
+            <div class="form-field">
+                <label for="appointment-service">Servicio *</label>
+                <select id="appointment-service" required>
+                    <option value="">Selecciona un servicio</option>
+                </select>
+            </div>
+
+            <div class="form-field">
+                <label for="appointment-date">Fecha *</label>
+                <input id="appointment-date" type="date" required>
+            </div>
+
+            <div class="form-field">
+                <label for="appointment-time">Hora *</label>
+                <input id="appointment-time" type="time" required>
+            </div>
+
+            <div class="form-field">
+                <label for="appointment-status">Estado</label>
+                <select id="appointment-status" required>
+                    <option value="Programada">Programada</option>
+                    <option value="Confirmada">Confirmada</option>
+                    <option value="Completada">Completada</option>
+                    <option value="Cancelada">Cancelada</option>
+                </select>
+            </div>
+
+            <div class="form-field appointment-notes-field">
+                <label for="appointment-notes">Observaciones</label>
+                <textarea
+                    id="appointment-notes"
+                    rows="3"
+                    placeholder="Añade alguna indicación sobre la cita..."
+                ></textarea>
+            </div>
+
         </div>
 
-        <div class="form-group">
-          <label for="appointment-employee">Empleado asignado</label>
-          <select id="appointment-employee">
-            <option value="">Selecciona un empleado</option>
-          </select>
+        <p id="appointment-form-message" class="form-message" role="status"></p>
+
+        <div class="form-actions">
+            <button id="cancel-appointment-button" class="secondary-button" type="button">
+                Cancelar
+            </button>
+            <button class="primary-button" type="submit">
+                Guardar cita
+            </button>
         </div>
-
-        <div class="form-group">
-          <label for="appointment-service">Servicio</label>
-          <select id="appointment-service" required>
-            <option value="">Selecciona un servicio</option>
-          </select>
-        </div>
-
-        <div class="form-group">
-          <label for="appointment-date">Fecha</label>
-          <input type="date" id="appointment-date" required>
-        </div>
-
-        <div class="form-group">
-          <label for="appointment-time">Hora</label>
-          <input type="time" id="appointment-time" required>
-        </div>
-
-        <div class="form-group">
-          <label for="appointment-status">Estado</label>
-          <select id="appointment-status" required>
-            <option value="Programada">Programada</option>
-            <option value="Confirmada">Confirmada</option>
-            <option value="Completada">Completada</option>
-            <option value="Cancelada">Cancelada</option>
-          </select>
-        </div>
-
-        <div class="form-group">
-          <label for="appointment-notes">Observaciones</label>
-          <textarea id="appointment-notes" rows="3"
-            placeholder="Información adicional sobre la cita"></textarea>
-        </div>
-
-      </div>
-
-      <p id="appointment-form-message"></p>
-
-      <div class="form-actions">
-        <button type="submit" class="primary-button">
-          Guardar cita
-        </button>
-
-        <button type="button" id="cancel-appointment-button"
-          class="secondary-button">
-          Cancelar
-        </button>
-      </div>
-
     </form>
-  </section>
+</section>
+
 
   <!-- Listado de citas -->
   <section class="table-card">

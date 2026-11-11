@@ -87,6 +87,8 @@ function mostrarSeccion(seccion) {
     return;
   }
 
+  localStorage.setItem("ordenoneSeccionActiva", seccion);
+
   enlacesMenu.forEach((enlace) => {
     enlace.classList.toggle("active", enlace.dataset.section === seccion);
   });
@@ -110,6 +112,9 @@ function mostrarSeccion(seccion) {
   }
   if (seccion === "servicios") {
     cargarServicios();
+  }
+  if (seccion === "citas") {
+    cargarCitas();
   }
 }
 
@@ -789,3 +794,314 @@ formularioEmpleado.addEventListener("submit", async (evento) => {
       empleadoEnEdicion !== null ? "Guardar cambios" : "Guardar empleado";
   }
 });
+
+/* =========================================
+   MÓDULO DE CITAS
+========================================= */
+
+const botonNuevaCita = document.querySelector("#new-appointment-button");
+const botonCancelarCita = document.querySelector("#cancel-appointment-button");
+const formularioCita = document.querySelector("#appointment-form");
+const contenedorFormularioCita = document.querySelector(
+  "#appointment-form-container",
+);
+const mensajeFormularioCita = document.querySelector(
+  "#appointment-form-message",
+);
+const tablaCitas = document.querySelector("#appointment-table-body");
+const buscadorCitas = document.querySelector("#appointment-search");
+
+const selectClienteCita = document.querySelector("#appointment-client");
+const selectEmpleadoCita = document.querySelector("#appointment-employee");
+const selectServicioCita = document.querySelector("#appointment-service");
+
+let citas = [];
+let citaEditandoId = null;
+
+async function cargarOpcionesCita() {
+  try {
+    const [respuestaClientes, respuestaEmpleados, respuestaServicios] =
+      await Promise.all([
+        fetch("http://localhost:3000/api/clientes"),
+        fetch("http://localhost:3000/api/empleados"),
+        fetch("http://localhost:3000/api/servicios"),
+      ]);
+
+    if (
+      !respuestaClientes.ok ||
+      !respuestaEmpleados.ok ||
+      !respuestaServicios.ok
+    ) {
+      throw new Error("No se pudieron cargar los datos.");
+    }
+
+    const [listaClientes, listaEmpleados, listaServicios] = await Promise.all([
+      respuestaClientes.json(),
+      respuestaEmpleados.json(),
+      respuestaServicios.json(),
+    ]);
+
+    selectClienteCita.innerHTML =
+      '<option value="">Selecciona un cliente</option>';
+    selectEmpleadoCita.innerHTML =
+      '<option value="">Selecciona un empleado</option>';
+    selectServicioCita.innerHTML =
+      '<option value="">Selecciona un servicio</option>';
+
+    listaClientes.forEach((cliente) => {
+      const opcion = document.createElement("option");
+      opcion.value = cliente.id_cliente;
+      opcion.textContent = cliente.nombre_completo;
+      selectClienteCita.appendChild(opcion);
+    });
+
+    listaEmpleados.forEach((empleado) => {
+      const opcion = document.createElement("option");
+      opcion.value = empleado.id_empleado;
+      opcion.textContent = empleado.nombre_completo;
+      selectEmpleadoCita.appendChild(opcion);
+    });
+
+    listaServicios.forEach((servicio) => {
+      const opcion = document.createElement("option");
+      opcion.value = servicio.id_servicio;
+      opcion.textContent = servicio.nombre;
+      selectServicioCita.appendChild(opcion);
+    });
+  } catch (error) {
+    mensajeFormularioCita.textContent = error.message;
+    mensajeFormularioCita.style.color = "#a13c35";
+  }
+}
+
+async function cargarCitas() {
+  try {
+    const respuesta = await fetch("http://localhost:3000/api/citas");
+
+    if (!respuesta.ok) {
+      throw new Error("No se pudieron cargar las citas.");
+    }
+
+    citas = await respuesta.json();
+    dibujarCitas(citas);
+  } catch (error) {
+    tablaCitas.innerHTML =
+      '<tr><td colspan="7" class="empty-message">No se pudieron cargar las citas.</td></tr>';
+
+    console.error("Error al cargar citas:", error);
+  }
+}
+
+function dibujarCitas(lista) {
+  tablaCitas.replaceChildren();
+
+  if (lista.length === 0) {
+    tablaCitas.innerHTML =
+      '<tr><td colspan="7" class="empty-message">Todavía no hay citas para mostrar.</td></tr>';
+    return;
+  }
+
+  lista.forEach((cita) => {
+    const fila = document.createElement("tr");
+
+    const datos = [
+      cita.cliente,
+      cita.empleado || "Sin asignar",
+      Array.isArray(cita.servicios) ? cita.servicios.join(", ") : "—",
+      cita.fecha ? new Date(cita.fecha).toLocaleDateString("es-CO") : "—",
+      cita.hora || "—",
+      cita.estado || "—",
+    ];
+
+    datos.forEach((dato) => {
+      const celda = document.createElement("td");
+      celda.textContent = dato;
+      fila.appendChild(celda);
+    });
+
+    const acciones = document.createElement("td");
+
+    const botonEditar = document.createElement("button");
+    botonEditar.textContent = "Editar";
+    botonEditar.type = "button";
+    botonEditar.className = "btn-accion btn-editar";
+    botonEditar.addEventListener("click", () => prepararEdicionCita(cita));
+
+    const botonCancelar = document.createElement("button");
+    botonCancelar.textContent = "Cancelar";
+    botonCancelar.type = "button";
+    botonCancelar.className = "btn-accion btn-cancelar";
+    botonCancelar.addEventListener("click", () => cancelarCita(cita.id_cita));
+
+    acciones.append(botonEditar, botonCancelar);
+    fila.appendChild(acciones);
+
+    tablaCitas.appendChild(fila);
+  });
+}
+
+async function prepararEdicionCita(cita) {
+  citaEditandoId = cita.id_cita;
+
+  contenedorFormularioCita.hidden = false;
+
+  await cargarOpcionesCita();
+
+  selectClienteCita.value = cita.id_cliente;
+  selectEmpleadoCita.value = cita.id_empleado || "";
+  selectServicioCita.value = cita.id_servicios?.[0] || "";
+
+  document.querySelector("#appointment-date").value =
+    cita.fecha?.split("T")[0] || "";
+
+  document.querySelector("#appointment-time").value = String(
+    cita.hora || "",
+  ).slice(0, 5);
+
+  document.querySelector("#appointment-status").value =
+    cita.estado || "Programada";
+
+  document.querySelector("#appointment-notes").value = cita.observaciones || "";
+
+  const botonGuardar = formularioCita.querySelector('button[type="submit"]');
+
+  botonGuardar.textContent = "Guardar cambios";
+
+  mensajeFormularioCita.textContent = "";
+
+  contenedorFormularioCita.scrollIntoView({
+    behavior: "smooth",
+    block: "start",
+  });
+}
+
+async function cancelarCita(id) {
+  const confirmar = confirm("¿Estás segura de que deseas cancelar esta cita?");
+
+  if (!confirmar) {
+    return;
+  }
+
+  try {
+    const respuesta = await fetch(
+      `http://localhost:3000/api/citas/${id}/cancelar`,
+      {
+        method: "PATCH",
+      },
+    );
+
+    const resultado = await respuesta.json();
+
+    if (!respuesta.ok) {
+      throw new Error(resultado.mensaje || "No se pudo cancelar la cita.");
+    }
+
+    alert("La cita ha sido cancelada correctamente.");
+
+    await cargarCitas();
+  } catch (error) {
+    alert(error.message);
+    console.error("Error al cancelar cita:", error);
+  }
+}
+
+botonNuevaCita.addEventListener("click", async () => {
+  formularioCita.reset();
+  citaEditandoId = null;
+
+  formularioCita.querySelector('button[type="submit"]').textContent =
+    "Guardar cita";
+  mensajeFormularioCita.textContent = "";
+  contenedorFormularioCita.hidden = false;
+
+  await cargarOpcionesCita();
+
+  contenedorFormularioCita.scrollIntoView({
+    behavior: "smooth",
+    block: "start",
+  });
+});
+
+botonCancelarCita.addEventListener("click", () => {
+  formularioCita.reset();
+  contenedorFormularioCita.hidden = true;
+  mensajeFormularioCita.textContent = "";
+});
+
+formularioCita.addEventListener("submit", async (evento) => {
+  evento.preventDefault();
+
+  const datosCita = {
+    id_cliente: selectClienteCita.value,
+    id_empleado: selectEmpleadoCita.value || null,
+    fecha: document.querySelector("#appointment-date").value,
+    hora: document.querySelector("#appointment-time").value,
+    estado: document.querySelector("#appointment-status").value,
+    observaciones: document.querySelector("#appointment-notes").value.trim(),
+    id_servicios: [Number(selectServicioCita.value)],
+  };
+
+  const botonGuardarCita = formularioCita.querySelector(
+    'button[type="submit"]',
+  );
+
+  try {
+    botonGuardarCita.disabled = true;
+    botonGuardarCita.textContent = "Guardando...";
+
+    const respuesta = await fetch(
+      citaEditandoId
+        ? `http://localhost:3000/api/citas/${citaEditandoId}`
+        : "http://localhost:3000/api/citas",
+      {
+        method: citaEditandoId ? "PUT" : "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(datosCita),
+      },
+    );
+
+    const resultado = await respuesta.json();
+
+    if (!respuesta.ok) {
+      throw new Error(resultado.mensaje || "No se pudo registrar la cita.");
+    }
+
+    const estabaEditando = citaEditandoId !== null;
+
+    formularioCita.reset();
+    contenedorFormularioCita.hidden = true;
+    citaEditandoId = null;
+
+    await cargarCitas();
+
+    alert(
+      estabaEditando
+        ? "Cita actualizada correctamente."
+        : "Cita registrada correctamente.",
+    );
+  } catch (error) {
+    mensajeFormularioCita.textContent = error.message;
+    mensajeFormularioCita.style.color = "#a13c35";
+    console.error("Error al guardar cita:", error);
+  } finally {
+    botonGuardarCita.disabled = false;
+    botonGuardarCita.textContent = "Guardar cita";
+  }
+});
+
+buscadorCitas.addEventListener("input", () => {
+  const busqueda = buscadorCitas.value.trim().toLowerCase();
+
+  const resultado = citas.filter((cita) =>
+    [cita.cliente, cita.empleado, cita.estado, ...(cita.servicios || [])]
+      .join(" ")
+      .toLowerCase()
+      .includes(busqueda),
+  );
+
+  dibujarCitas(resultado);
+});
+
+mostrarSeccion(localStorage.getItem("ordenoneSeccionActiva") || "dashboard");

@@ -470,23 +470,28 @@ app.get("/api/citas", async (req, res) => {
     const resultado = await pool.query(
       `SELECT
         c.id_cita,
+        c.id_cliente,
+c.id_empleado,
         cl.nombre_completo AS cliente,
         e.nombre_completo AS empleado,
         c.fecha,
         c.hora,
         c.estado,
         c.observaciones,
-        ARRAY_AGG(s.nombre) AS servicios
+        ARRAY_AGG(DISTINCT s.nombre) FILTER (WHERE s.nombre IS NOT NULL) AS servicios,
+ARRAY_AGG(DISTINCT cs.id_servicio) FILTER (WHERE cs.id_servicio IS NOT NULL) AS id_servicios
       FROM cita c
       INNER JOIN cliente cl ON c.id_cliente = cl.id_cliente
       LEFT JOIN empleado e ON c.id_empleado = e.id_empleado
       LEFT JOIN cita_servicio cs ON c.id_cita = cs.id_cita
       LEFT JOIN servicio s ON cs.id_servicio = s.id_servicio
       WHERE c.id_negocio = $1
-      GROUP BY
-        c.id_cita,
-        cl.nombre_completo,
-        e.nombre_completo
+     GROUP BY
+    c.id_cita,
+    c.id_cliente,
+    c.id_empleado,
+    cl.nombre_completo,
+    e.nombre_completo
       ORDER BY c.fecha DESC, c.hora DESC`,
       [1],
     );
@@ -567,6 +572,111 @@ app.post("/api/citas", async (req, res) => {
     });
   } finally {
     conexion.release();
+  }
+});
+
+// Editar una cita
+app.put("/api/citas/:id", async (req, res) => {
+  const { id } = req.params;
+  const {
+    id_cliente,
+    id_empleado,
+    fecha,
+    hora,
+    estado,
+    observaciones,
+    id_servicios,
+  } = req.body;
+
+  const conexion = await pool.connect();
+
+  try {
+    await conexion.query("BEGIN");
+
+    const resultado = await conexion.query(
+      `UPDATE cita
+             SET id_cliente = $1,
+                 id_empleado = $2,
+                 fecha = $3,
+                 hora = $4,
+                 estado = $5,
+                 observaciones = $6
+             WHERE id_cita = $7 AND id_negocio = $8
+             RETURNING id_cita`,
+      [
+        id_cliente,
+        id_empleado || null,
+        fecha,
+        hora,
+        estado,
+        observaciones,
+        id,
+        1,
+      ],
+    );
+
+    if (resultado.rowCount === 0) {
+      await conexion.query("ROLLBACK");
+      return res.status(404).json({
+        mensaje: "No se encontró la cita",
+      });
+    }
+
+    await conexion.query("DELETE FROM cita_servicio WHERE id_cita = $1", [id]);
+
+    for (const id_servicio of id_servicios || []) {
+      await conexion.query(
+        `INSERT INTO cita_servicio (id_cita, id_servicio)
+                 VALUES ($1, $2)`,
+        [id, id_servicio],
+      );
+    }
+
+    await conexion.query("COMMIT");
+
+    res.json({
+      mensaje: "Cita actualizada correctamente",
+    });
+  } catch (error) {
+    await conexion.query("ROLLBACK");
+    console.error("Error al editar cita:", error.message);
+
+    res.status(500).json({
+      mensaje: "No se pudo actualizar la cita",
+    });
+  } finally {
+    conexion.release();
+  }
+});
+
+// Cancelar una cita
+app.patch("/api/citas/:id/cancelar", async (req, res) => {
+  const { id } = req.params;
+
+  try {
+    const resultado = await pool.query(
+      `UPDATE cita
+             SET estado = 'Cancelada'
+             WHERE id_cita = $1 AND id_negocio = $2
+             RETURNING id_cita`,
+      [id, 1],
+    );
+
+    if (resultado.rowCount === 0) {
+      return res.status(404).json({
+        mensaje: "No se encontró la cita",
+      });
+    }
+
+    res.json({
+      mensaje: "Cita cancelada correctamente",
+    });
+  } catch (error) {
+    console.error("Error al cancelar cita:", error.message);
+
+    res.status(500).json({
+      mensaje: "No se pudo cancelar la cita",
+    });
   }
 });
 
