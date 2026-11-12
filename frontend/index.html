@@ -621,6 +621,7 @@
             </table>
         </div>
     </section>
+    
 
     <section id="service-form-container" class="form-card" hidden>
         <div class="form-heading">
@@ -697,6 +698,74 @@
     </section>
 </section>
 
+
+<!-- Vista de órdenes de servicio -->
+<section id="ordenes-view" class="module-view" hidden>
+
+    <div class="module-page-heading">
+        <div>
+            <p class="eyebrow">GESTIÓN DE ÓRDENES</p>
+            <h2>Órdenes de servicio</h2>
+            <p>Registra y consulta los servicios realizados a tus clientes.</p>
+        </div>
+
+        <button id="new-order-button" class="primary-button" type="button">
+            + Nueva orden
+        </button>
+    </div>
+
+    <div class="client-summary">
+        <div class="client-summary-icon">☷</div>
+        <div>
+            <p>Registro de operaciones</p>
+            <h3>Órdenes registradas</h3>
+            <span>Consulta y administra las órdenes de tu negocio.</span>
+        </div>
+    </div>
+
+    <section class="table-card">
+
+        <div class="table-heading">
+            <div>
+                <h3>Listado de órdenes</h3>
+                <p>Información registrada en el sistema.</p>
+            </div>
+
+            <input
+                type="search"
+                id="order-search"
+                placeholder="Buscar orden..."
+                aria-label="Buscar orden"
+            >
+        </div>
+
+        <div class="table-responsive">
+            <table>
+                <thead>
+                    <tr>
+                        <th>N.º Orden</th>
+                        <th>Cliente</th>
+                        <th>Empleado</th>
+                        <th>Fecha</th>
+                        <th>Total</th>
+                        <th>Estado</th>
+                        <th>Acciones</th>
+                    </tr>
+                </thead>
+
+                <tbody id="order-table-body">
+                    <tr>
+                        <td colspan="7" class="empty-message">
+                            Todavía no hay órdenes para mostrar.
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+
+    </section>
+
+</section>
 
         </main>
     </div>

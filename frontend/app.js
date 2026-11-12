@@ -9,6 +9,7 @@ const vistaClientes = document.querySelector("#clientes-view");
 const vistaEmpleados = document.querySelector("#empleados-view");
 const vistaServicios = document.querySelector("#servicios-view");
 const vistaCitas = document.querySelector("#citas-view");
+const vistaOrdenes = document.querySelector("#ordenes-view");
 
 const botonNuevoEmpleado = document.querySelector("#new-employee-button");
 const botonCancelarEmpleado = document.querySelector("#cancel-employee-button");
@@ -101,6 +102,7 @@ function mostrarSeccion(seccion) {
   vistaEmpleados.hidden = seccion !== "empleados";
   vistaServicios.hidden = seccion !== "servicios";
   vistaCitas.hidden = seccion !== "citas";
+  vistaOrdenes.hidden = seccion !== "ordenes";
 
   cerrarFormulario();
 
