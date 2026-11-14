@@ -765,6 +765,85 @@
 
     </section>
 
+    <!-- Formulario de nueva orden -->
+<div id="order-form-container" class="form-container" hidden>
+
+    <form id="order-form">
+
+        <h3>Registrar nueva orden</h3>
+
+        <div class="form-grid">
+
+            <div class="form-group">
+                <label for="order-client">Cliente</label>
+                <select id="order-client" required>
+                    <option value="">Seleccionar cliente</option>
+                </select>
+            </div>
+
+            <div class="form-group">
+                <label for="order-employee">Empleado</label>
+                <select id="order-employee" required>
+                    <option value="">Seleccionar empleado</option>
+                </select>
+            </div>
+
+            <div class="form-group">
+                <label for="order-date">Fecha del servicio</label>
+                <input type="datetime-local" id="order-date">
+            </div>
+
+            <div class="form-group">
+                <label for="order-appointment">Cita asociada (opcional)</label>
+                <select id="order-appointment">
+                    <option value="">Sin cita asociada</option>
+                </select>
+            </div>
+
+        </div>
+
+        <h4>Servicios de la orden</h4>
+
+        <div class="form-grid">
+
+            <div class="form-group">
+                <label for="order-service">Servicio</label>
+                <select id="order-service" required>
+                    <option value="">Seleccionar servicio</option>
+                </select>
+            </div>
+
+            <div class="form-group">
+                <label for="order-quantity">Cantidad</label>
+                <input type="number" id="order-quantity"
+                       min="1" value="1" required>
+            </div>
+
+        </div>
+
+        <div class="form-group">
+            <label for="order-observations">Observaciones</label>
+            <textarea id="order-observations"
+                      placeholder="Observaciones de la orden..."></textarea>
+        </div>
+
+        <div class="form-actions">
+
+            <button type="button" id="cancel-order-button"
+                    class="secondary-button">
+                Cancelar
+            </button>
+
+           <button type="submit" id="save-order-button" class="primary-button">
+    Guardar orden
+</button>
+
+        </div>
+
+    </form>
+
+</div>
+
 </section>
 
         </main>

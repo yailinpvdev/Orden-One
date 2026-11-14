@@ -681,6 +681,395 @@ app.patch("/api/citas/:id/cancelar", async (req, res) => {
 });
 
 // Iniciar el servidor
+
+// ==========================================
+// MÓDULO DE ÓRDENES DE SERVICIO
+// ==========================================
+
+// Consultar órdenes registradas
+app.get("/api/ordenes", async (req, res) => {
+  try {
+    const resultado = await pool.query(
+      `SELECT
+          o.id_orden,
+          o.id_cliente,
+          o.id_empleado,
+          o.id_cita,
+          o.fecha_servicio,
+          o.observaciones,
+          o.total,
+          o.estado,
+          c.nombre_completo AS cliente,
+          e.nombre_completo AS empleado,
+          COALESCE(
+            json_agg(
+              json_build_object(
+                'id_servicio', d.id_servicio,
+                'nombre', s.nombre,
+                'cantidad', d.cantidad,
+                'precio', d.precio_aplicado
+              )
+            ) FILTER (WHERE d.id_detalle IS NOT NULL),
+            '[]'
+          ) AS servicios
+       FROM orden_servicio o
+       INNER JOIN cliente c ON o.id_cliente = c.id_cliente
+       INNER JOIN empleado e ON o.id_empleado = e.id_empleado
+       LEFT JOIN detalle_orden d ON o.id_orden = d.id_orden
+       LEFT JOIN servicio s ON d.id_servicio = s.id_servicio
+       WHERE o.id_negocio = 1
+       GROUP BY o.id_orden, c.nombre_completo, e.nombre_completo
+       ORDER BY o.id_orden DESC`,
+    );
+
+    res.json(resultado.rows);
+  } catch (error) {
+    console.error("Error al consultar órdenes:", error.message);
+    res.status(500).json({ mensaje: "No se pudieron consultar las órdenes" });
+  }
+});
+
+// Registrar una nueva orden
+app.post("/api/ordenes", async (req, res) => {
+  const {
+    id_cliente,
+    id_empleado,
+    id_cita,
+    fecha_servicio,
+    observaciones,
+    detalles,
+  } = req.body;
+
+  if (
+    !id_cliente ||
+    !id_empleado ||
+    !Array.isArray(detalles) ||
+    detalles.length === 0
+  ) {
+    return res.status(400).json({
+      mensaje:
+        "Debes seleccionar un cliente, un empleado y al menos un servicio",
+    });
+  }
+
+  const conexion = await pool.connect();
+
+  try {
+    await conexion.query("BEGIN");
+
+    const cliente = await conexion.query(
+      "SELECT id_cliente FROM cliente WHERE id_cliente = $1 AND id_negocio = 1 AND estado = 'Activo'",
+      [id_cliente],
+    );
+
+    const empleado = await conexion.query(
+      "SELECT id_empleado FROM empleado WHERE id_empleado = $1 AND id_negocio = 1 AND estado = 'Activo'",
+      [id_empleado],
+    );
+
+    if (cliente.rowCount === 0 || empleado.rowCount === 0) {
+      await conexion.query("ROLLBACK");
+      return res
+        .status(400)
+        .json({ mensaje: "El cliente o empleado no es válido" });
+    }
+
+    if (id_cita) {
+      const cita = await conexion.query(
+        `SELECT id_cita FROM cita
+         WHERE id_cita = $1
+           AND id_negocio = 1
+           AND id_cliente = $2
+           AND estado NOT IN ('Cancelada', 'No asistió')
+           AND NOT EXISTS (
+             SELECT 1 FROM orden_servicio WHERE id_cita = $1
+           )`,
+        [id_cita, id_cliente],
+      );
+
+      if (cita.rowCount === 0) {
+        await conexion.query("ROLLBACK");
+        return res.status(400).json({
+          mensaje:
+            "La cita no existe, no corresponde al cliente o ya tiene una orden",
+        });
+      }
+    }
+
+    let total = 0;
+    const serviciosValidados = [];
+
+    for (const detalle of detalles) {
+      const cantidad = Number(detalle.cantidad);
+      const idServicio = Number(detalle.id_servicio);
+
+      if (
+        !Number.isInteger(cantidad) ||
+        cantidad <= 0 ||
+        !Number.isInteger(idServicio)
+      ) {
+        await conexion.query("ROLLBACK");
+        return res
+          .status(400)
+          .json({ mensaje: "Los datos de los servicios no son válidos" });
+      }
+
+      const servicio = await conexion.query(
+        `SELECT id_servicio, precio_base
+         FROM servicio
+         WHERE id_servicio = $1 AND id_negocio = 1 AND estado = 'Activo'`,
+        [idServicio],
+      );
+
+      if (servicio.rowCount === 0) {
+        await conexion.query("ROLLBACK");
+        return res
+          .status(400)
+          .json({ mensaje: "Uno de los servicios no está disponible" });
+      }
+
+      const precio = Number(servicio.rows[0].precio_base);
+      total += precio * cantidad;
+
+      serviciosValidados.push({
+        id_servicio: idServicio,
+        cantidad,
+        precio,
+      });
+    }
+
+    const nuevaOrden = await conexion.query(
+      `INSERT INTO orden_servicio
+       (id_negocio, id_cliente, id_empleado, id_cita, fecha_servicio, observaciones, total)
+       VALUES (1, $1, $2, $3, COALESCE($4::timestamp, CURRENT_TIMESTAMP), $5, $6)
+       RETURNING id_orden`,
+      [
+        id_cliente,
+        id_empleado,
+        id_cita || null,
+        fecha_servicio || null,
+        observaciones || null,
+        total,
+      ],
+    );
+
+    const idOrden = nuevaOrden.rows[0].id_orden;
+
+    for (const detalle of serviciosValidados) {
+      await conexion.query(
+        `INSERT INTO detalle_orden
+         (id_orden, id_servicio, cantidad, precio_aplicado)
+         VALUES ($1, $2, $3, $4)`,
+        [idOrden, detalle.id_servicio, detalle.cantidad, detalle.precio],
+      );
+    }
+
+    await conexion.query("COMMIT");
+
+    res.status(201).json({
+      mensaje: "Orden registrada correctamente",
+      id_orden: idOrden,
+      total,
+    });
+  } catch (error) {
+    await conexion.query("ROLLBACK");
+    console.error("Error al registrar orden:", error.message);
+    res.status(500).json({ mensaje: "No se pudo registrar la orden" });
+  } finally {
+    conexion.release();
+  }
+});
+
+// Editar una orden de servicio
+app.put("/api/ordenes/:id", async (req, res) => {
+  const conexion = await pool.connect();
+
+  try {
+    const { id } = req.params;
+    const {
+      id_cliente,
+      id_empleado,
+      id_cita,
+      fecha_servicio,
+      observaciones,
+      detalles,
+    } = req.body;
+
+    if (
+      !id_cliente ||
+      !id_empleado ||
+      !Array.isArray(detalles) ||
+      detalles.length === 0
+    ) {
+      return res.status(400).json({
+        mensaje: "Completa el cliente, empleado y al menos un servicio",
+      });
+    }
+
+    await conexion.query("BEGIN");
+
+    const orden = await conexion.query(
+      `SELECT estado FROM orden_servicio
+       WHERE id_orden = $1 AND id_negocio = 1
+       FOR UPDATE`,
+      [id],
+    );
+
+    if (orden.rows.length === 0) {
+      await conexion.query("ROLLBACK");
+      return res.status(404).json({ mensaje: "Orden no encontrada" });
+    }
+
+    if (["Completada", "Anulada"].includes(orden.rows[0].estado)) {
+      await conexion.query("ROLLBACK");
+      return res.status(400).json({
+        mensaje: "No se pueden editar órdenes completadas o anuladas",
+      });
+    }
+
+    if (id_cita) {
+      const cita = await conexion.query(
+        `SELECT id_cita FROM cita
+         WHERE id_cita = $1 AND id_cliente = $2`,
+        [id_cita, id_cliente],
+      );
+
+      if (cita.rows.length === 0) {
+        await conexion.query("ROLLBACK");
+        return res.status(400).json({
+          mensaje: "La cita no corresponde al cliente seleccionado",
+        });
+      }
+
+      const citaUsada = await conexion.query(
+        `SELECT id_orden FROM orden_servicio
+         WHERE id_cita = $1 AND id_orden <> $2`,
+        [id_cita, id],
+      );
+
+      if (citaUsada.rows.length > 0) {
+        await conexion.query("ROLLBACK");
+        return res.status(400).json({
+          mensaje: "Esta cita ya está asociada a otra orden",
+        });
+      }
+    }
+
+    let total = 0;
+
+    for (const detalle of detalles) {
+      const servicio = await conexion.query(
+        `SELECT precio_base FROM servicio
+         WHERE id_servicio = $1 AND id_negocio = 1 AND estado = 'Activo'`,
+        [detalle.id_servicio],
+      );
+
+      if (servicio.rows.length === 0) {
+        await conexion.query("ROLLBACK");
+        return res.status(400).json({
+          mensaje: "Uno de los servicios no está disponible",
+        });
+      }
+
+      const cantidad = Number(detalle.cantidad);
+      if (!Number.isInteger(cantidad) || cantidad <= 0) {
+        await conexion.query("ROLLBACK");
+        return res.status(400).json({
+          mensaje: "La cantidad debe ser un número entero mayor que cero",
+        });
+      }
+
+      total += Number(servicio.rows[0].precio_base) * cantidad;
+    }
+
+    await conexion.query(
+      `UPDATE orden_servicio
+       SET id_cliente = $1,
+           id_empleado = $2,
+           id_cita = $3,
+           fecha_servicio = COALESCE($4::timestamp, fecha_servicio),
+           observaciones = $5,
+           total = $6
+       WHERE id_orden = $7 AND id_negocio = 1`,
+      [
+        id_cliente,
+        id_empleado,
+        id_cita || null,
+        fecha_servicio || null,
+        observaciones || null,
+        total,
+        id,
+      ],
+    );
+
+    await conexion.query("DELETE FROM detalle_orden WHERE id_orden = $1", [id]);
+
+    for (const detalle of detalles) {
+      const servicio = await conexion.query(
+        `SELECT precio_base FROM servicio
+         WHERE id_servicio = $1 AND id_negocio = 1 AND estado = 'Activo'`,
+        [detalle.id_servicio],
+      );
+
+      await conexion.query(
+        `INSERT INTO detalle_orden
+         (id_orden, id_servicio, cantidad, precio_aplicado)
+         VALUES ($1, $2, $3, $4)`,
+        [
+          id,
+          detalle.id_servicio,
+          Number(detalle.cantidad),
+          servicio.rows[0].precio_base,
+        ],
+      );
+    }
+
+    await conexion.query("COMMIT");
+
+    res.json({ mensaje: "Orden actualizada correctamente" });
+  } catch (error) {
+    await conexion.query("ROLLBACK");
+    console.error("Error al editar orden:", error);
+    res.status(500).json({ mensaje: "No se pudo actualizar la orden" });
+  } finally {
+    conexion.release();
+  }
+});
+
+// Cambiar el estado de una orden
+app.patch("/api/ordenes/:id/estado", async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { estado } = req.body;
+
+    const estadosPermitidos = ["Registrada", "Completada", "Anulada"];
+
+    if (!estadosPermitidos.includes(estado)) {
+      return res.status(400).json({ mensaje: "Estado no válido" });
+    }
+
+    const resultado = await pool.query(
+      `UPDATE orden_servicio
+       SET estado = $1
+       WHERE id_orden = $2 AND id_negocio = 1
+       RETURNING id_orden, estado`,
+      [estado, id],
+    );
+
+    if (resultado.rows.length === 0) {
+      return res.status(404).json({ mensaje: "Orden no encontrada" });
+    }
+
+    res.json({
+      mensaje: "Estado actualizado correctamente",
+      orden: resultado.rows[0],
+    });
+  } catch (error) {
+    console.error("Error al cambiar estado:", error);
+    res.status(500).json({ mensaje: "No se pudo cambiar el estado" });
+  }
+});
+
 app.listen(PORT, () => {
   console.log(`Servidor OrdenOne ejecutándose en http://localhost:${PORT}`);
 });

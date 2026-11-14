@@ -10,6 +10,13 @@ const vistaEmpleados = document.querySelector("#empleados-view");
 const vistaServicios = document.querySelector("#servicios-view");
 const vistaCitas = document.querySelector("#citas-view");
 const vistaOrdenes = document.querySelector("#ordenes-view");
+const botonNuevaOrden = document.querySelector("#new-order-button");
+
+const formularioOrden = document.querySelector("#order-form");
+const contenedorFormularioOrden = document.querySelector(
+  "#order-form-container",
+);
+const botonCancelarOrden = document.querySelector("#cancel-order-button");
 
 const botonNuevoEmpleado = document.querySelector("#new-employee-button");
 const botonCancelarEmpleado = document.querySelector("#cancel-employee-button");
@@ -1107,3 +1114,323 @@ buscadorCitas.addEventListener("input", () => {
 });
 
 mostrarSeccion(localStorage.getItem("ordenoneSeccionActiva") || "dashboard");
+
+// ==========================================
+// FUNCIONALIDAD DE ÓRDENES DE SERVICIO
+// ==========================================
+
+const tablaOrdenes = document.querySelector("#order-table-body");
+const buscadorOrdenes = document.querySelector("#order-search");
+
+const selectClienteOrden = document.querySelector("#order-client");
+const selectEmpleadoOrden = document.querySelector("#order-employee");
+const selectCitaOrden = document.querySelector("#order-appointment");
+const selectServicioOrden = document.querySelector("#order-service");
+
+const campoFechaOrden = document.querySelector("#order-date");
+const campoCantidadOrden = document.querySelector("#order-quantity");
+const campoObservacionesOrden = document.querySelector("#order-observations");
+
+let ordenes = [];
+
+async function cargarOpcionesOrden() {
+  try {
+    const [rClientes, rEmpleados, rServicios, rCitas] = await Promise.all([
+      fetch("http://localhost:3000/api/clientes"),
+      fetch("http://localhost:3000/api/empleados"),
+      fetch("http://localhost:3000/api/servicios"),
+      fetch("http://localhost:3000/api/citas"),
+    ]);
+
+    if (![rClientes, rEmpleados, rServicios, rCitas].every((r) => r.ok)) {
+      throw new Error("No se pudieron cargar los datos del formulario.");
+    }
+
+    const [clientes, empleados, servicios, citas] = await Promise.all([
+      rClientes.json(),
+      rEmpleados.json(),
+      rServicios.json(),
+      rCitas.json(),
+    ]);
+
+    selectClienteOrden.innerHTML =
+      '<option value="">Seleccionar cliente</option>';
+    selectEmpleadoOrden.innerHTML =
+      '<option value="">Seleccionar empleado</option>';
+    selectServicioOrden.innerHTML =
+      '<option value="">Seleccionar servicio</option>';
+    selectCitaOrden.innerHTML = '<option value="">Sin cita asociada</option>';
+
+    clientes.forEach((cliente) => {
+      const opcion = document.createElement("option");
+      opcion.value = cliente.id_cliente;
+      opcion.textContent = cliente.nombre_completo;
+      selectClienteOrden.appendChild(opcion);
+    });
+
+    empleados.forEach((empleado) => {
+      const opcion = document.createElement("option");
+      opcion.value = empleado.id_empleado;
+      opcion.textContent = empleado.nombre_completo;
+      selectEmpleadoOrden.appendChild(opcion);
+    });
+
+    servicios.forEach((servicio) => {
+      const opcion = document.createElement("option");
+      opcion.value = servicio.id_servicio;
+      opcion.textContent = `${servicio.nombre} - $${Number(servicio.precio_base).toLocaleString("es-CO")}`;
+      selectServicioOrden.appendChild(opcion);
+    });
+
+    citas.forEach((cita) => {
+      const opcion = document.createElement("option");
+      opcion.value = cita.id_cita;
+      opcion.textContent = `Cita #${cita.id_cita} - ${cita.cliente}`;
+      selectCitaOrden.appendChild(opcion);
+    });
+  } catch (error) {
+    alert(error.message);
+    console.error("Error al cargar opciones de orden:", error);
+  }
+}
+
+async function cargarOrdenes() {
+  try {
+    const respuesta = await fetch("http://localhost:3000/api/ordenes");
+
+    if (!respuesta.ok) {
+      throw new Error("No se pudieron consultar las órdenes.");
+    }
+
+    ordenes = await respuesta.json();
+    dibujarOrdenes(ordenes);
+  } catch (error) {
+    tablaOrdenes.innerHTML =
+      '<tr><td colspan="7" class="empty-message">No se pudieron cargar las órdenes.</td></tr>';
+
+    console.error("Error al cargar órdenes:", error);
+  }
+}
+
+function dibujarOrdenes(lista) {
+  tablaOrdenes.replaceChildren();
+
+  if (lista.length === 0) {
+    tablaOrdenes.innerHTML =
+      '<tr><td colspan="7" class="empty-message">Todavía no hay órdenes para mostrar.</td></tr>';
+    return;
+  }
+
+  lista.forEach((orden) => {
+    const fila = document.createElement("tr");
+
+    const datos = [
+      `#${orden.id_orden}`,
+      orden.cliente,
+      orden.empleado,
+      orden.fecha_servicio
+        ? new Date(orden.fecha_servicio).toLocaleDateString("es-CO")
+        : "—",
+      `$${Number(orden.total).toLocaleString("es-CO")}`,
+      orden.estado,
+    ];
+
+    datos.forEach((dato) => {
+      const celda = document.createElement("td");
+      celda.textContent = dato ?? "—";
+      fila.appendChild(celda);
+    });
+
+    const acciones = document.createElement("td");
+    const botonDetalle = document.createElement("button");
+
+    botonDetalle.type = "button";
+    botonDetalle.className = "btn-accion btn-editar";
+    botonDetalle.textContent = "Ver";
+
+    botonDetalle.addEventListener("click", () => {
+      const servicios = (orden.servicios || [])
+        .map(
+          (servicio) =>
+            `${servicio.nombre} x ${servicio.cantidad} - $${Number(servicio.precio).toLocaleString("es-CO")}`,
+        )
+        .join("\n");
+
+      alert(
+        `Orden #${orden.id_orden}\n\n` +
+          `Cliente: ${orden.cliente}\n` +
+          `Empleado: ${orden.empleado}\n` +
+          `Servicios:\n${servicios}\n\n` +
+          `Total: $${Number(orden.total).toLocaleString("es-CO")}\n` +
+          `Estado: ${orden.estado}\n` +
+          `Observaciones: ${orden.observaciones || "Ninguna"}`,
+      );
+    });
+
+    const botonEditar = document.createElement("button");
+    botonEditar.type = "button";
+    botonEditar.className = "btn-accion btn-editar";
+    botonEditar.textContent = "Editar";
+
+    botonEditar.addEventListener("click", async () => {
+      if (orden.estado !== "Registrada") {
+        alert("Solo se pueden editar órdenes registradas.");
+        return;
+      }
+
+      formularioOrden.reset();
+      await cargarOpcionesOrden();
+
+      window.ordenEditandoId = orden.id_orden;
+
+      selectClienteOrden.value = orden.id_cliente;
+      selectEmpleadoOrden.value = orden.id_empleado;
+      selectCitaOrden.value = orden.id_cita || "";
+      campoFechaOrden.value = orden.fecha_servicio
+        ? String(orden.fecha_servicio).replace(" ", "T").slice(0, 16)
+        : "";
+      campoObservacionesOrden.value = orden.observaciones || "";
+
+      const detalle = orden.servicios?.[0];
+
+      if (detalle) {
+        selectServicioOrden.value = detalle.id_servicio;
+        campoCantidadOrden.value = detalle.cantidad;
+      }
+
+      contenedorFormularioOrden.hidden = false;
+      document.querySelector("#save-order-button").textContent =
+        "Actualizar orden";
+
+      contenedorFormularioOrden.scrollIntoView({
+        behavior: "smooth",
+        block: "start",
+      });
+    });
+
+    acciones.appendChild(botonEditar);
+
+    acciones.appendChild(botonDetalle);
+    fila.appendChild(acciones);
+    tablaOrdenes.appendChild(fila);
+  });
+}
+
+// Abrir formulario
+botonNuevaOrden.addEventListener("click", async () => {
+  formularioOrden.reset();
+  contenedorFormularioOrden.hidden = false;
+
+  campoFechaOrden.value = new Date().toISOString().slice(0, 16);
+
+  await cargarOpcionesOrden();
+
+  contenedorFormularioOrden.scrollIntoView({
+    behavior: "smooth",
+    block: "start",
+  });
+});
+
+// Cancelar formulario
+botonCancelarOrden.addEventListener("click", () => {
+  formularioOrden.reset();
+  contenedorFormularioOrden.hidden = true;
+});
+
+// Guardar orden
+formularioOrden.addEventListener("submit", async (evento) => {
+  evento.preventDefault();
+
+  const botonGuardar = document.querySelector("#save-order-button");
+
+  const datosOrden = {
+    id_cliente: Number(selectClienteOrden.value),
+    id_empleado: Number(selectEmpleadoOrden.value),
+    id_cita: selectCitaOrden.value ? Number(selectCitaOrden.value) : null,
+    fecha_servicio: campoFechaOrden.value || null,
+    observaciones: campoObservacionesOrden.value.trim(),
+    detalles: [
+      {
+        id_servicio: Number(selectServicioOrden.value),
+        cantidad: Number(campoCantidadOrden.value),
+      },
+    ],
+  };
+
+  try {
+    botonGuardar.disabled = true;
+    botonGuardar.textContent = "Guardando...";
+
+    const editando = window.ordenEditandoId;
+
+    const respuesta = await fetch(
+      editando
+        ? `http://localhost:3000/api/ordenes/${editando}`
+        : "http://localhost:3000/api/ordenes",
+      {
+        method: editando ? "PUT" : "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(datosOrden),
+      },
+    );
+
+    const resultado = await respuesta.json();
+
+    if (!respuesta.ok) {
+      throw new Error(resultado.mensaje || "No se pudo guardar la orden.");
+    }
+
+    alert(
+      editando
+        ? "¡Orden actualizada correctamente!"
+        : "¡Orden registrada correctamente!",
+    );
+
+    formularioOrden.reset();
+    window.ordenEditandoId = null;
+    contenedorFormularioOrden.hidden = true;
+
+    await cargarOrdenes();
+  } catch (error) {
+    alert(error.message);
+    console.error("Error al guardar orden:", error);
+  } finally {
+    botonGuardar.disabled = false;
+    botonGuardar.textContent = "Guardar orden";
+  }
+});
+
+// Buscar órdenes
+buscadorOrdenes.addEventListener("input", () => {
+  const busqueda = buscadorOrdenes.value.trim().toLowerCase();
+
+  const resultado = ordenes.filter((orden) =>
+    [orden.id_orden, orden.cliente, orden.empleado, orden.estado]
+      .join(" ")
+      .toLowerCase()
+      .includes(busqueda),
+  );
+
+  dibujarOrdenes(resultado);
+});
+
+// Cargar órdenes al entrar en el módulo
+enlacesMenu.forEach((enlace) => {
+  enlace.addEventListener("click", () => {
+    if (enlace.dataset.section === "ordenes") {
+      cargarOrdenes();
+    }
+  });
+});
+
+accesosDashboard.forEach((boton) => {
+  boton.addEventListener("click", () => {
+    if (boton.dataset.section === "ordenes") {
+      cargarOrdenes();
+    }
+  });
+});
+
+cargarOrdenes();

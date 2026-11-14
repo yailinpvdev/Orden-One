@@ -854,3 +854,152 @@ th {
 .btn-accion:hover {
     transform: translateY(-1px);
 }
+
+
+/* =====================================
+   FORMULARIO DE ÓRDENES - ORDENONE
+===================================== */
+
+#order-form-container {
+    background: #ffffff;
+    border: 1px solid #e2e8f0;
+    border-radius: 12px;
+    padding: 28px;
+    margin-top: 24px;
+    box-shadow: 0 3px 12px rgba(30, 50, 80, 0.04);
+    width: 100%;
+    box-sizing: border-box;
+}
+
+#order-form-container[hidden] {
+    display: none !important;
+}
+
+#order-form h3 {
+    color: #243650;
+    font-size: 21px;
+    margin: 0 0 24px;
+}
+
+#order-form h4 {
+    color: #243650;
+    font-size: 16px;
+    margin: 28px 0 18px;
+}
+
+#order-form .form-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 20px;
+    margin-bottom: 20px;
+}
+
+#order-form .form-group {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    min-width: 0;
+}
+
+#order-form label {
+    color: #34445e;
+    font-size: 14px;
+    font-weight: 600;
+}
+
+#order-form input,
+#order-form select,
+#order-form textarea {
+    width: 100%;
+    box-sizing: border-box;
+    padding: 11px 13px;
+    border: 1px solid #dce3ed;
+    border-radius: 7px;
+    background: #ffffff;
+    color: #29384f;
+    font-family: inherit;
+    font-size: 14px;
+    outline: none;
+    transition: border-color 0.2s, box-shadow 0.2s;
+}
+
+#order-form input:focus,
+#order-form select:focus,
+#order-form textarea:focus {
+    border-color: #345a9c;
+    box-shadow: 0 0 0 3px rgba(52, 90, 156, 0.10);
+}
+
+#order-form textarea {
+    min-height: 100px;
+    resize: vertical;
+}
+
+#order-form .form-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 12px;
+    margin-top: 28px;
+    padding-top: 20px;
+    border-top: 1px solid #edf0f5;
+}
+
+#order-form .form-actions button {
+    padding: 11px 22px;
+    border-radius: 7px;
+    font-family: inherit;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background 0.2s;
+}
+
+#order-form .secondary-button {
+    background: #eef1f6;
+    color: #29384f;
+    border: none;
+}
+
+#order-form .secondary-button:hover {
+    background: #e1e6ef;
+}
+
+#order-form .primary-button {
+    background: #192f53;
+    color: #ffffff;
+    border: none;
+}
+
+#order-form .primary-button:hover {
+    background: #284572;
+}
+
+@media (max-width: 700px) {
+    #order-form-container {
+        padding: 18px;
+    }
+
+    #order-form .form-grid {
+        grid-template-columns: 1fr;
+        gap: 16px;
+    }
+
+    #order-form .form-actions {
+        flex-direction: column-reverse;
+    }
+
+    #order-form .form-actions button {
+        width: 100%;
+    }
+}
+
+
+#order-form select {
+    appearance: none;
+    -webkit-appearance: none;
+    padding-right: 42px;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%23475569' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 16px center;
+    background-size: 16px;
+}
