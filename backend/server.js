@@ -1342,6 +1342,225 @@ app.patch("/api/seguimiento/:id/estado", async (req, res) => {
   }
 });
 
+// Consultar los horarios de los empleados
+app.get("/api/horarios", async (req, res) => {
+  try {
+    const resultado = await pool.query(
+      `SELECT
+         h.id_horario,
+         h.id_empleado,
+         e.nombre_completo AS empleado,
+         h.dia_semana,
+         h.hora_inicio,
+         h.hora_fin
+       FROM horario h
+       INNER JOIN empleado e
+         ON h.id_empleado = e.id_empleado
+       WHERE e.id_negocio = 1
+       ORDER BY e.nombre_completo, h.dia_semana, h.hora_inicio`,
+    );
+
+    res.json(resultado.rows);
+  } catch (error) {
+    console.error("Error al consultar horarios:", error.message);
+    res.status(500).json({
+      mensaje: "No se pudieron consultar los horarios",
+    });
+  }
+});
+
+// Registrar un horario para un empleado
+app.post("/api/horarios", async (req, res) => {
+  try {
+    const { id_empleado, dia_semana, hora_inicio, hora_fin } = req.body;
+
+    const diasPermitidos = [
+      "Lunes",
+      "Martes",
+      "Miercoles",
+      "Jueves",
+      "Viernes",
+      "Sabado",
+      "Domingo",
+    ];
+
+    if (
+      !Number.isInteger(Number(id_empleado)) ||
+      Number(id_empleado) <= 0 ||
+      !diasPermitidos.includes(dia_semana) ||
+      !hora_inicio ||
+      !hora_fin ||
+      hora_fin <= hora_inicio
+    ) {
+      return res.status(400).json({
+        mensaje: "Verifica los datos del horario",
+      });
+    }
+
+    const empleado = await pool.query(
+      `SELECT id_empleado
+       FROM empleado
+       WHERE id_empleado = $1 AND id_negocio = 1`,
+      [id_empleado],
+    );
+
+    if (empleado.rowCount === 0) {
+      return res.status(404).json({
+        mensaje: "No se encontró el empleado",
+      });
+    }
+
+    const conflicto = await pool.query(
+      `SELECT id_horario
+       FROM horario
+       WHERE id_empleado = $1
+         AND dia_semana = $2
+         AND hora_inicio < $4
+         AND hora_fin > $3`,
+      [id_empleado, dia_semana, hora_inicio, hora_fin],
+    );
+
+    if (conflicto.rowCount > 0) {
+      return res.status(409).json({
+        mensaje: "El empleado ya tiene un horario que se cruza con ese horario",
+      });
+    }
+
+    const resultado = await pool.query(
+      `INSERT INTO horario
+        (id_empleado, dia_semana, hora_inicio, hora_fin)
+       VALUES ($1, $2, $3, $4)
+       RETURNING *`,
+      [id_empleado, dia_semana, hora_inicio, hora_fin],
+    );
+
+    res.status(201).json({
+      mensaje: "Horario registrado correctamente",
+      horario: resultado.rows[0],
+    });
+  } catch (error) {
+    console.error("Error al registrar horario:", error.message);
+    res.status(500).json({
+      mensaje: "No se pudo registrar el horario",
+    });
+  }
+});
+
+// Actualizar un horario
+app.put("/api/horarios/:id", async (req, res) => {
+  try {
+    const id = Number(req.params.id);
+    const { id_empleado, dia_semana, hora_inicio, hora_fin } = req.body;
+
+    const diasPermitidos = [
+      "Lunes",
+      "Martes",
+      "Miercoles",
+      "Jueves",
+      "Viernes",
+      "Sabado",
+      "Domingo",
+    ];
+
+    if (
+      !Number.isInteger(id) ||
+      id <= 0 ||
+      !Number.isInteger(Number(id_empleado)) ||
+      Number(id_empleado) <= 0 ||
+      !diasPermitidos.includes(dia_semana) ||
+      !hora_inicio ||
+      !hora_fin ||
+      hora_fin <= hora_inicio
+    ) {
+      return res.status(400).json({
+        mensaje: "Verifica los datos del horario",
+      });
+    }
+
+    const conflicto = await pool.query(
+      `SELECT id_horario
+       FROM horario
+       WHERE id_empleado = $1
+         AND dia_semana = $2
+         AND id_horario <> $5
+         AND hora_inicio < $4
+         AND hora_fin > $3`,
+      [id_empleado, dia_semana, hora_inicio, hora_fin, id],
+    );
+
+    if (conflicto.rowCount > 0) {
+      return res.status(409).json({
+        mensaje: "El horario se cruza con otro horario del empleado",
+      });
+    }
+
+    const resultado = await pool.query(
+      `UPDATE horario
+       SET id_empleado = $1,
+           dia_semana = $2,
+           hora_inicio = $3,
+           hora_fin = $4
+       WHERE id_horario = $5
+       RETURNING *`,
+      [id_empleado, dia_semana, hora_inicio, hora_fin, id],
+    );
+
+    if (resultado.rowCount === 0) {
+      return res.status(404).json({
+        mensaje: "No se encontró el horario",
+      });
+    }
+
+    res.json({
+      mensaje: "Horario actualizado correctamente",
+      horario: resultado.rows[0],
+    });
+  } catch (error) {
+    console.error("Error al actualizar horario:", error.message);
+    res.status(500).json({
+      mensaje: "No se pudo actualizar el horario",
+    });
+  }
+});
+
+// Eliminar un horario
+app.delete("/api/horarios/:id", async (req, res) => {
+  try {
+    const id = Number(req.params.id);
+
+    if (!Number.isInteger(id) || id <= 0) {
+      return res.status(400).json({
+        mensaje: "El identificador no es válido",
+      });
+    }
+
+    const resultado = await pool.query(
+      `DELETE FROM horario h
+       USING empleado e
+       WHERE h.id_empleado = e.id_empleado
+         AND h.id_horario = $1
+         AND e.id_negocio = 1
+       RETURNING h.id_horario`,
+      [id],
+    );
+
+    if (resultado.rowCount === 0) {
+      return res.status(404).json({
+        mensaje: "No se encontró el horario",
+      });
+    }
+
+    res.json({
+      mensaje: "Horario eliminado correctamente",
+    });
+  } catch (error) {
+    console.error("Error al eliminar horario:", error.message);
+    res.status(500).json({
+      mensaje: "No se pudo eliminar el horario",
+    });
+  }
+});
+
 app.listen(PORT, () => {
   console.log(`Servidor OrdenOne ejecutándose en http://localhost:${PORT}`);
 });

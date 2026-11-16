@@ -13,6 +13,7 @@ const vistaOrdenes = document.querySelector("#ordenes-view");
 
 const vistaPagos = document.querySelector("#pagos-view");
 const vistaSeguimiento = document.querySelector("#seguimiento-view");
+const vistaHorarios = document.querySelector("#horarios-view");
 const botonNuevaOrden = document.querySelector("#new-order-button");
 
 const formularioOrden = document.querySelector("#order-form");
@@ -115,6 +116,7 @@ function mostrarSeccion(seccion) {
   vistaOrdenes.hidden = seccion !== "ordenes";
   vistaPagos.hidden = seccion !== "pagos";
   vistaSeguimiento.hidden = seccion !== "seguimiento";
+  vistaHorarios.hidden = seccion !== "horarios";
 
   cerrarFormulario();
 
@@ -130,8 +132,12 @@ function mostrarSeccion(seccion) {
   if (seccion === "citas") {
     cargarCitas();
   }
+  if (seccion === "horarios") {
+    cargarHorarios();
+  }
   if (seccion === "seguimiento") {
     cargarSeguimiento();
+    cargarOpcionesSeguimiento();
   }
 }
 
@@ -1517,6 +1523,160 @@ async function cargarHistorialPagos() {
   }
 }
 
+// Cargar historial de seguimientos
+async function cargarSeguimiento() {
+  const tablaSeguimiento = document.querySelector("#seguimiento-table-body");
+
+  tablaSeguimiento.innerHTML = `
+    <tr>
+      <td colspan="7" class="empty-message">
+        Cargando seguimientos...
+      </td>
+    </tr>
+  `;
+
+  try {
+    const respuesta = await fetch("http://localhost:3000/api/seguimiento");
+
+    if (!respuesta.ok) {
+      throw new Error("No se pudieron cargar los seguimientos.");
+    }
+
+    const seguimientos = await respuesta.json();
+
+    tablaSeguimiento.innerHTML = "";
+
+    if (seguimientos.length === 0) {
+      tablaSeguimiento.innerHTML = `
+        <tr>
+          <td colspan="7" class="empty-message">
+            Todavía no hay seguimientos registrados.
+          </td>
+        </tr>
+      `;
+      return;
+    }
+
+    seguimientos.forEach((seguimiento) => {
+      const fila = document.createElement("tr");
+
+      const fecha = new Date(seguimiento.fecha_seguimiento).toLocaleDateString(
+        "es-CO",
+      );
+
+      const datos = [
+        fecha,
+        seguimiento.cliente,
+        seguimiento.id_orden || "Sin orden",
+        seguimiento.motivo,
+        seguimiento.observaciones || "Sin observaciones",
+        seguimiento.estado,
+        "—",
+      ];
+
+      datos.forEach((dato) => {
+        const celda = document.createElement("td");
+        celda.textContent = dato;
+        fila.appendChild(celda);
+      });
+
+      tablaSeguimiento.appendChild(fila);
+    });
+  } catch (error) {
+    console.error("Error al cargar seguimientos:", error);
+
+    tablaSeguimiento.innerHTML = `
+      <tr>
+        <td colspan="7" class="empty-message">
+          No se pudieron cargar los seguimientos.
+        </td>
+      </tr>
+    `;
+  }
+}
+
+// Cargar clientes y órdenes en el formulario de seguimiento
+async function cargarOpcionesSeguimiento() {
+  const selectorCliente = document.querySelector("#seguimiento-cliente");
+  const selectorOrden = document.querySelector("#seguimiento-orden");
+  selectorCliente.innerHTML = '<option value="">Seleccionar cliente</option>';
+  selectorOrden.innerHTML = '<option value="">Sin orden relacionada</option>';
+
+  try {
+    const [respuestaClientes, respuestaOrdenes] = await Promise.all([
+      fetch("http://localhost:3000/api/clientes"),
+      fetch("http://localhost:3000/api/ordenes"),
+    ]);
+
+    if (!respuestaClientes.ok || !respuestaOrdenes.ok) {
+      throw new Error("No se pudieron cargar los datos.");
+    }
+
+    const clientesSeguimiento = await respuestaClientes.json();
+    const ordenesSeguimiento = await respuestaOrdenes.json();
+
+    clientesSeguimiento.forEach((cliente) => {
+      const opcion = document.createElement("option");
+      opcion.value = cliente.id_cliente;
+      opcion.textContent = cliente.nombre_completo;
+      selectorCliente.appendChild(opcion);
+    });
+
+    ordenesSeguimiento.forEach((orden) => {
+      const opcion = document.createElement("option");
+      opcion.value = orden.id_orden;
+      opcion.textContent = `Orden #${orden.id_orden}`;
+      selectorOrden.appendChild(opcion);
+    });
+  } catch (error) {
+    console.error("Error al cargar opciones de seguimiento:", error);
+  }
+}
+
+// Registrar un nuevo seguimiento
+const formularioSeguimiento = document.querySelector("#seguimiento-form");
+
+formularioSeguimiento.addEventListener("submit", async (evento) => {
+  evento.preventDefault();
+
+  const datosSeguimiento = {
+    id_cliente: Number(document.querySelector("#seguimiento-cliente").value),
+    id_orden: document.querySelector("#seguimiento-orden").value
+      ? Number(document.querySelector("#seguimiento-orden").value)
+      : null,
+    motivo: document.querySelector("#seguimiento-motivo").value.trim(),
+    observaciones: document
+      .querySelector("#seguimiento-observaciones")
+      .value.trim(),
+  };
+
+  try {
+    const respuesta = await fetch("http://localhost:3000/api/seguimiento", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(datosSeguimiento),
+    });
+
+    const resultado = await respuesta.json();
+
+    if (!respuesta.ok) {
+      throw new Error(
+        resultado.mensaje || "No se pudo guardar el seguimiento.",
+      );
+    }
+
+    alert("¡Seguimiento registrado correctamente!");
+
+    formularioSeguimiento.reset();
+    await cargarSeguimiento();
+  } catch (error) {
+    console.error("Error al registrar seguimiento:", error);
+    alert(error.message || "No se pudo conectar con el servidor.");
+  }
+});
+
 // Registrar un pago
 formularioPago.addEventListener("submit", async (evento) => {
   evento.preventDefault();
@@ -1559,3 +1719,114 @@ formularioPago.addEventListener("submit", async (evento) => {
 // Cargar información al iniciar
 cargarOrdenesPendientes();
 cargarHistorialPagos();
+
+// Cargar horarios registrados
+async function cargarHorarios() {
+  const tabla = document.querySelector("#horarios-table-body");
+
+  try {
+    const respuesta = await fetch("http://localhost:3000/api/horarios");
+
+    if (!respuesta.ok) {
+      throw new Error("No se pudieron cargar los horarios");
+    }
+
+    const horarios = await respuesta.json();
+
+    const selectEmpleado = document.querySelector("#horario-empleado");
+
+    const respuestaEmpleados = await fetch(
+      "http://localhost:3000/api/empleados",
+    );
+    const empleados = await respuestaEmpleados.json();
+
+    selectEmpleado.innerHTML = '<option value="">Seleccionar empleado</option>';
+
+    empleados.forEach((empleado) => {
+      const opcion = document.createElement("option");
+      opcion.value = empleado.id_empleado;
+      opcion.textContent = empleado.nombre_completo;
+      selectEmpleado.appendChild(opcion);
+    });
+
+    tabla.innerHTML = "";
+
+    if (horarios.length === 0) {
+      tabla.innerHTML = `
+        <tr>
+          <td colspan="5" class="empty-message">
+            Todavía no hay horarios registrados.
+          </td>
+        </tr>
+      `;
+      return;
+    }
+
+    horarios.forEach((horario) => {
+      const fila = document.createElement("tr");
+
+      fila.innerHTML = `
+      <td>${horario.empleado}</td>
+        <td>${horario.dia_semana}</td>
+        <td>${String(horario.hora_inicio).slice(0, 5)}</td>
+        <td>${String(horario.hora_fin).slice(0, 5)}</td>
+        <td>—</td>
+      `;
+
+      tabla.appendChild(fila);
+    });
+  } catch (error) {
+    console.error("Error al cargar horarios:", error);
+    tabla.innerHTML = `
+      <tr>
+        <td colspan="5" class="empty-message">
+          No se pudieron cargar los horarios.
+        </td>
+      </tr>
+    `;
+  }
+}
+
+// Registrar un nuevo horario
+const formularioHorario = document.querySelector("#horario-form");
+
+formularioHorario.addEventListener("submit", async (evento) => {
+  evento.preventDefault();
+
+  const datosHorario = {
+    id_empleado: Number(document.querySelector("#horario-empleado").value),
+    dia_semana: document.querySelector("#horario-dia").value,
+    hora_inicio: document.querySelector("#horario-inicio").value,
+    hora_fin: document.querySelector("#horario-fin").value,
+  };
+
+  const botonGuardar = formularioHorario.querySelector('button[type="submit"]');
+  botonGuardar.disabled = true;
+  botonGuardar.textContent = "Guardando...";
+
+  try {
+    const respuesta = await fetch("http://localhost:3000/api/horarios", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(datosHorario),
+    });
+
+    const resultado = await respuesta.json();
+
+    if (!respuesta.ok) {
+      throw new Error(resultado.mensaje || "No se pudo guardar el horario.");
+    }
+
+    alert("¡Horario registrado correctamente!");
+    formularioHorario.reset();
+    await cargarHorarios();
+  } catch (error) {
+    console.error("Error al guardar horario:", error);
+    alert(error.message || "No se pudo conectar con el servidor.");
+  } finally {
+    botonGuardar.disabled = false;
+    botonGuardar.textContent = "Guardar horario";
+  }
+});
