@@ -1070,6 +1070,278 @@ app.patch("/api/ordenes/:id/estado", async (req, res) => {
   }
 });
 
+// ==========================================
+// MÓDULO DE REGISTRO DE PAGOS
+// ==========================================
+
+// Consultar órdenes y sus saldos pendientes
+app.get("/api/pagos/ordenes-pendientes", async (req, res) => {
+  try {
+    const resultado = await pool.query(`
+      SELECT
+        o.id_orden,
+        c.nombre_completo AS cliente,
+        o.total AS total_orden,
+        COALESCE(SUM(
+          CASE WHEN p.estado = 'Registrado' THEN p.monto ELSE 0 END
+        ), 0) AS total_pagado,
+        o.total - COALESCE(SUM(
+          CASE WHEN p.estado = 'Registrado' THEN p.monto ELSE 0 END
+        ), 0) AS saldo_pendiente
+      FROM orden_servicio o
+      INNER JOIN cliente c ON c.id_cliente = o.id_cliente
+      LEFT JOIN pago p ON p.id_orden = o.id_orden
+      WHERE o.id_negocio = 1 AND o.estado <> 'Anulada'
+      GROUP BY o.id_orden, c.nombre_completo, o.total
+      HAVING o.total - COALESCE(SUM(
+        CASE WHEN p.estado = 'Registrado' THEN p.monto ELSE 0 END
+      ), 0) > 0
+      ORDER BY o.id_orden DESC
+    `);
+
+    res.json(resultado.rows);
+  } catch (error) {
+    console.error("Error al consultar órdenes pendientes:", error);
+    res.status(500).json({ mensaje: "No se pudieron consultar las órdenes" });
+  }
+});
+
+// Consultar todos los pagos
+app.get("/api/pagos", async (req, res) => {
+  try {
+    const resultado = await pool.query(`
+      SELECT
+        p.id_pago,
+        p.id_orden,
+        p.fecha_pago,
+        p.monto,
+        p.metodo,
+        p.estado,
+        c.nombre_completo AS cliente
+      FROM pago p
+      INNER JOIN orden_servicio o ON o.id_orden = p.id_orden
+      INNER JOIN cliente c ON c.id_cliente = o.id_cliente
+      WHERE o.id_negocio = 1
+      ORDER BY p.id_pago DESC
+    `);
+
+    res.json(resultado.rows);
+  } catch (error) {
+    console.error("Error al consultar pagos:", error);
+    res.status(500).json({ mensaje: "No se pudieron consultar los pagos" });
+  }
+});
+
+// Registrar un pago
+app.post("/api/pagos", async (req, res) => {
+  const { id_orden, monto, metodo, fecha_pago } = req.body;
+  const metodosPermitidos = [
+    "Efectivo",
+    "Tarjeta",
+    "Transferencia",
+    "Nequi",
+    "Otro",
+  ];
+
+  if (!id_orden || !Number.isInteger(Number(id_orden))) {
+    return res.status(400).json({ mensaje: "Selecciona una orden válida" });
+  }
+
+  if (!Number.isFinite(Number(monto)) || Number(monto) <= 0) {
+    return res
+      .status(400)
+      .json({ mensaje: "El monto debe ser mayor que cero" });
+  }
+
+  if (!metodosPermitidos.includes(metodo)) {
+    return res.status(400).json({ mensaje: "Método de pago no válido" });
+  }
+
+  let conexion;
+
+  try {
+    conexion = await pool.connect();
+    await conexion.query("BEGIN");
+
+    const orden = await conexion.query(
+      `SELECT id_orden, total, estado
+       FROM orden_servicio
+       WHERE id_orden = $1 AND id_negocio = 1
+       FOR UPDATE`,
+      [Number(id_orden)],
+    );
+
+    if (orden.rows.length === 0 || orden.rows[0].estado === "Anulada") {
+      await conexion.query("ROLLBACK");
+      return res
+        .status(404)
+        .json({ mensaje: "La orden no existe o está anulada" });
+    }
+
+    const pagos = await conexion.query(
+      `SELECT COALESCE(SUM(monto), 0) AS total_pagado
+       FROM pago
+       WHERE id_orden = $1 AND estado = 'Registrado'`,
+      [Number(id_orden)],
+    );
+
+    const saldo =
+      Number(orden.rows[0].total) - Number(pagos.rows[0].total_pagado);
+
+    if (Number(monto) > saldo) {
+      await conexion.query("ROLLBACK");
+      return res.status(400).json({
+        mensaje: `El pago supera el saldo pendiente de $${saldo.toLocaleString("es-CO")}`,
+      });
+    }
+
+    const nuevoPago = await conexion.query(
+      `INSERT INTO pago (id_orden, fecha_pago, monto, metodo, estado)
+       VALUES ($1, COALESCE($2::timestamp, CURRENT_TIMESTAMP), $3, $4, 'Registrado')
+       RETURNING *`,
+      [Number(id_orden), fecha_pago || null, Number(monto), metodo],
+    );
+
+    await conexion.query("COMMIT");
+
+    res.status(201).json({
+      mensaje: "¡Pago registrado correctamente!",
+      pago: nuevoPago.rows[0],
+    });
+  } catch (error) {
+    if (conexion) await conexion.query("ROLLBACK");
+    console.error("Error al registrar pago:", error);
+    res.status(500).json({ mensaje: "No se pudo registrar el pago" });
+  } finally {
+    if (conexion) conexion.release();
+  }
+});
+
+// ==========================================
+// MÓDULO DE SEGUIMIENTO
+// ==========================================
+
+// Consultar el historial de seguimientos
+app.get("/api/seguimiento", async (req, res) => {
+  try {
+    const resultado = await pool.query(`
+      SELECT
+        s.id_seguimiento,
+        s.id_cliente,
+        s.id_orden,
+        s.fecha_seguimiento,
+        s.motivo,
+        s.observaciones,
+        s.estado,
+        c.nombre_completo AS cliente
+      FROM seguimiento_cliente s
+      INNER JOIN cliente c ON c.id_cliente = s.id_cliente
+      WHERE s.id_negocio = 1
+      ORDER BY s.fecha_seguimiento DESC
+    `);
+
+    res.json(resultado.rows);
+  } catch (error) {
+    console.error("Error al consultar seguimientos:", error.message);
+    res.status(500).json({
+      mensaje: "No se pudieron consultar los seguimientos",
+    });
+  }
+});
+
+// Registrar un nuevo seguimiento
+app.post("/api/seguimiento", async (req, res) => {
+  try {
+    const { id_cliente, id_orden, motivo, observaciones, fecha_seguimiento } =
+      req.body;
+
+    if (!Number.isInteger(Number(id_cliente)) || Number(id_cliente) <= 0) {
+      return res.status(400).json({
+        mensaje: "Selecciona un cliente válido",
+      });
+    }
+
+    if (typeof motivo !== "string" || !motivo.trim()) {
+      return res.status(400).json({
+        mensaje: "El motivo del seguimiento es obligatorio",
+      });
+    }
+
+    const resultado = await pool.query(
+      `INSERT INTO seguimiento_cliente
+        (id_negocio, id_cliente, id_orden, fecha_seguimiento,
+         motivo, observaciones, estado)
+       VALUES (1, $1, $2, COALESCE($3::timestamp, CURRENT_TIMESTAMP),
+               $4, $5, 'Pendiente')
+       RETURNING *`,
+      [
+        Number(id_cliente),
+        id_orden ? Number(id_orden) : null,
+        fecha_seguimiento || null,
+        motivo.trim(),
+        observaciones?.trim() || null,
+      ],
+    );
+
+    res.status(201).json({
+      mensaje: "Seguimiento registrado correctamente",
+      seguimiento: resultado.rows[0],
+    });
+  } catch (error) {
+    console.error("Error al registrar seguimiento:", error.message);
+    res.status(500).json({
+      mensaje: "No se pudo registrar el seguimiento",
+    });
+  }
+});
+
+// Actualizar el estado de un seguimiento
+app.patch("/api/seguimiento/:id/estado", async (req, res) => {
+  try {
+    const id = Number(req.params.id);
+    const { estado } = req.body;
+
+    const estadosPermitidos = ["Pendiente", "Contactado", "Finalizado"];
+
+    if (!Number.isInteger(id) || id <= 0) {
+      return res.status(400).json({
+        mensaje: "El identificador no es válido",
+      });
+    }
+
+    if (!estadosPermitidos.includes(estado)) {
+      return res.status(400).json({
+        mensaje: "El estado no es válido",
+      });
+    }
+
+    const resultado = await pool.query(
+      `UPDATE seguimiento_cliente
+       SET estado = $1
+       WHERE id_seguimiento = $2
+         AND id_negocio = 1
+       RETURNING id_seguimiento, estado`,
+      [estado, id],
+    );
+
+    if (resultado.rowCount === 0) {
+      return res.status(404).json({
+        mensaje: "No se encontró el seguimiento",
+      });
+    }
+
+    res.json({
+      mensaje: "Estado actualizado correctamente",
+      seguimiento: resultado.rows[0],
+    });
+  } catch (error) {
+    console.error("Error al actualizar el seguimiento:", error.message);
+    res.status(500).json({
+      mensaje: "No se pudo actualizar el estado",
+    });
+  }
+});
+
 app.listen(PORT, () => {
   console.log(`Servidor OrdenOne ejecutándose en http://localhost:${PORT}`);
 });

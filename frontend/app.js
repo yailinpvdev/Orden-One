@@ -10,6 +10,9 @@ const vistaEmpleados = document.querySelector("#empleados-view");
 const vistaServicios = document.querySelector("#servicios-view");
 const vistaCitas = document.querySelector("#citas-view");
 const vistaOrdenes = document.querySelector("#ordenes-view");
+
+const vistaPagos = document.querySelector("#pagos-view");
+const vistaSeguimiento = document.querySelector("#seguimiento-view");
 const botonNuevaOrden = document.querySelector("#new-order-button");
 
 const formularioOrden = document.querySelector("#order-form");
@@ -110,6 +113,8 @@ function mostrarSeccion(seccion) {
   vistaServicios.hidden = seccion !== "servicios";
   vistaCitas.hidden = seccion !== "citas";
   vistaOrdenes.hidden = seccion !== "ordenes";
+  vistaPagos.hidden = seccion !== "pagos";
+  vistaSeguimiento.hidden = seccion !== "seguimiento";
 
   cerrarFormulario();
 
@@ -124,6 +129,9 @@ function mostrarSeccion(seccion) {
   }
   if (seccion === "citas") {
     cargarCitas();
+  }
+  if (seccion === "seguimiento") {
+    cargarSeguimiento();
   }
 }
 
@@ -1434,3 +1442,120 @@ accesosDashboard.forEach((boton) => {
 });
 
 cargarOrdenes();
+
+// =====================================
+// MÓDULO DE REGISTRO DE PAGOS
+// =====================================
+
+const formularioPago = document.querySelector("#payment-form");
+const selectorOrdenPago = document.querySelector("#payment-order");
+const montoPago = document.querySelector("#payment-amount");
+const metodoPago = document.querySelector("#payment-method");
+const fechaPago = document.querySelector("#payment-date");
+const tablaPagos = document.querySelector("#payment-table-body");
+
+// Cargar órdenes que tienen saldo pendiente
+async function cargarOrdenesPendientes() {
+  try {
+    const respuesta = await fetch(
+      "http://localhost:3000/api/pagos/ordenes-pendientes",
+    );
+    if (!respuesta.ok) throw new Error("No se pudieron cargar las órdenes");
+
+    const ordenesPendientes = await respuesta.json();
+
+    selectorOrdenPago.innerHTML = '<option value="">Seleccionar orden</option>';
+
+    ordenesPendientes.forEach((orden) => {
+      const opcion = document.createElement("option");
+      opcion.value = orden.id_orden;
+      opcion.textContent = `Orden #${orden.id_orden} - ${orden.cliente} | Saldo: $${Number(orden.saldo_pendiente).toLocaleString("es-CO")}`;
+      selectorOrdenPago.appendChild(opcion);
+    });
+  } catch (error) {
+    console.error("Error al cargar órdenes pendientes:", error);
+  }
+}
+
+// Consultar historial de pagos
+async function cargarHistorialPagos() {
+  try {
+    const respuesta = await fetch("http://localhost:3000/api/pagos");
+    if (!respuesta.ok) throw new Error("No se pudo cargar el historial");
+
+    const pagos = await respuesta.json();
+
+    tablaPagos.innerHTML = "";
+
+    if (pagos.length === 0) {
+      tablaPagos.innerHTML = `
+        <tr>
+          <td colspan="6" class="empty-message">
+            Todavía no hay pagos registrados.
+          </td>
+        </tr>`;
+      return;
+    }
+
+    pagos.forEach((pago) => {
+      const fila = document.createElement("tr");
+      const fecha = new Date(pago.fecha_pago).toLocaleDateString("es-CO");
+
+      fila.innerHTML = `
+        <td>#${pago.id_pago}</td>
+        <td>#${pago.id_orden}</td>
+        <td>${fecha}</td>
+        <td>$${Number(pago.monto).toLocaleString("es-CO")}</td>
+        <td>${pago.metodo}</td>
+        <td>${pago.estado}</td>
+      `;
+
+      tablaPagos.appendChild(fila);
+    });
+  } catch (error) {
+    console.error("Error al cargar historial de pagos:", error);
+  }
+}
+
+// Registrar un pago
+formularioPago.addEventListener("submit", async (evento) => {
+  evento.preventDefault();
+
+  const datosPago = {
+    id_orden: Number(selectorOrdenPago.value),
+    monto: Number(montoPago.value),
+    metodo: metodoPago.value,
+    fecha_pago: fechaPago.value,
+  };
+
+  try {
+    const respuesta = await fetch("http://localhost:3000/api/pagos", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(datosPago),
+    });
+
+    const resultado = await respuesta.json();
+
+    if (!respuesta.ok) {
+      alert(resultado.mensaje || "No se pudo registrar el pago.");
+      return;
+    }
+
+    alert("¡Pago registrado correctamente!");
+
+    formularioPago.reset();
+
+    await cargarOrdenesPendientes();
+    await cargarHistorialPagos();
+  } catch (error) {
+    console.error("Error al registrar pago:", error);
+    alert("No se pudo conectar con el servidor.");
+  }
+});
+
+// Cargar información al iniciar
+cargarOrdenesPendientes();
+cargarHistorialPagos();
